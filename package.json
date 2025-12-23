@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "node scripts/generatePlatformManifest.js && next dev",
     "build": "node scripts/generatePlatformManifest.js && next build",
+    "snapshot:tokenmeta": "node scripts/snapshotTokenMeta.ts",
     "start": "next start",
     "lint": "eslint"
   },
@@ -23,6 +24,7 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "resend": "^6.5.2",
+    "undici": "^7.16.0",
     "viem": "^2.41.2",
     "wagmi": "^2.19.5"
   },

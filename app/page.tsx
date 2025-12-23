@@ -25,6 +25,7 @@ import InkMetricsLayout from './InkMetricsLayout'
 import NoWalletOverlay from './components/home/NoWalletOverlay'
 import EcosystemGrid from './components/ecosystem/EcosystemGrid'
 import { inkEcosystem } from './data/ink-ecosystem'
+import ExploreDashboard from './components/explore/ExploreDashboard'
 
 
 
@@ -4164,14 +4165,20 @@ const valueUsd =
 {activePage === 'Explore' && (
   <section className="positions-section">
     <div className="ink-divider"></div>
+
     <div className="positions-header-row">
       <div className="portfolio-title-stack">
         <div className="section-title">Explore</div>
-        <div className="section-subtitle">coming soon</div>
+        <div className="section-subtitle">tokens, holders, whales</div>
       </div>
+    </div>
+
+    <div style={{ marginTop: 16 }}>
+      <ExploreDashboard />
     </div>
   </section>
 )}
+
 
 {activePage === 'Language' && (
   <section className="positions-section">
