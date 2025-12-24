@@ -10,6 +10,7 @@ GlobeAltIcon,
 PaperAirplaneIcon,
 XMarkIcon,
 InformationCircleIcon,
+ClipboardIcon,
 } from '@heroicons/react/24/outline'
 
 
@@ -151,6 +152,30 @@ function DescTooltipPortal(props: { text: string }) {
 function TopTokenCard(props: { rank: number; row?: Row; loading?: boolean }) {
   const r = props.row
 
+    const [copied, setCopied] = useState(false)
+
+  const onCopy = async () => {
+    if (!r?.address) return
+    try {
+      await navigator.clipboard.writeText(r.address)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 900)
+    } catch {
+      try {
+        const ta = document.createElement('textarea')
+        ta.value = r.address
+        ta.style.position = 'fixed'
+        ta.style.left = '-9999px'
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+        setCopied(true)
+        window.setTimeout(() => setCopied(false), 900)
+      } catch {}
+    }
+  }
+
 const explorerUrl = r?.address ? `https://explorer.inkonchain.com/address/${r.address}` : null
 const chartUrl = r?.address ? `https://dexscreener.com/ink/${r.address}` : null
 
@@ -170,6 +195,7 @@ const chartUrl = r?.address ? `https://dexscreener.com/ink/${r.address}` : null
     r?.symbol === 'ANITA' && 'eco-topcard-anita',
   ].filter(Boolean).join(' ')}
 >
+    <div className='eco-topglow' />
 
       <div className='eco-topcard-top'>
         <div className='eco-topcard-badge'>
@@ -273,9 +299,23 @@ const chartUrl = r?.address ? `https://dexscreener.com/ink/${r.address}` : null
     </div>
   </div>
 
-  <div className='eco-topcard-address'>
-    {props.loading ? 'Loading' : (r?.address ? shortAddr(r.address) : 'No data')}
+    <div className='eco-topcard-addressrow'>
+    <div className='eco-topcard-address'>
+      {props.loading ? 'Loading' : (r?.address ? shortAddr(r.address) : 'No data')}
+    </div>
+
+   <button
+  type='button'
+  className='eco-copybtn'
+  onClick={onCopy}
+  disabled={!r?.address || props.loading}
+>
+  <ClipboardIcon className='eco-copyic' />
+  {copied && <span className='eco-copyhint'>contract copied</span>}
+</button>
+
   </div>
+
 </div>
 
 
@@ -310,24 +350,49 @@ const chartUrl = r?.address ? `https://dexscreener.com/ink/${r.address}` : null
   )
 }
 
+const TOP_MCAP_CACHE_KEY = 'ink_explore_top_mcap_cache_v1'
+
+const readTopCache = (): Row[] | null => {
+  try {
+    if (typeof window === 'undefined') return null
+    const raw = sessionStorage.getItem(TOP_MCAP_CACHE_KEY)
+    if (!raw) return null
+    const j = JSON.parse(raw)
+    return Array.isArray(j) ? (j as Row[]) : null
+  } catch {
+    return null
+  }
+}
+
+const writeTopCache = (rows: Row[]) => {
+  try {
+    sessionStorage.setItem(TOP_MCAP_CACHE_KEY, JSON.stringify(rows))
+  } catch {}
+}
+
 export default function TopMcapCards() {
-  const [rows, setRows] = useState<Row[] | null>(null)
+  const [rows, setRows] = useState<Row[] | null>(() => readTopCache())
 
   useEffect(() => {
+    // already have cache for this session, do nothing
+    if (rows && rows.length) return
+
     let dead = false
     const run = async () => {
       try {
-       const r = await fetch('/api/explore/top-tokens-mcap', { cache: 'no-store' })
-const j = await r.json()
-if (dead) return
-setRows(Array.isArray(j?.rows) ? j.rows : [])
-
-
+        const r = await fetch('/api/explore/top-tokens-mcap')
+        const j = await r.json()
+        if (dead) return
+        const out = Array.isArray(j?.rows) ? j.rows : []
+        setRows(out)
+        writeTopCache(out)
       } catch {
         if (dead) return
-setRows([])
+        setRows([])
+        writeTopCache([])
       }
     }
+
     run()
     return () => {
       dead = true
@@ -340,10 +405,9 @@ setRows([])
 
   return (
     <div className='grid gap-4 md:grid-cols-3'>
-     <TopTokenCard rank={1} row={r1} loading={rows === null} />
-<TopTokenCard rank={2} row={r2} loading={rows === null} />
-<TopTokenCard rank={3} row={r3} loading={rows === null} />
-
+      <TopTokenCard rank={1} row={r1} loading={rows === null} />
+      <TopTokenCard rank={2} row={r2} loading={rows === null} />
+      <TopTokenCard rank={3} row={r3} loading={rows === null} />
     </div>
   )
 }

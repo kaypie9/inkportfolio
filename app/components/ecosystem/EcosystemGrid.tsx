@@ -7,7 +7,6 @@ import {
   BookOpenIcon,
   GlobeAltIcon,
   StarIcon,
-  XMarkIcon,
 } from '@heroicons/react/24/outline'
 
 const CATS: Array<EcosystemItem['category'] | 'All'> = [
@@ -21,6 +20,12 @@ const CATS: Array<EcosystemItem['category'] | 'All'> = [
   'Games',
   'Wallet',
 ]
+
+const XIcon = ({ className = '' }) => (
+  <svg viewBox='0 0 24 24' className={className} fill='currentColor'>
+    <path d='M18.244 2H21.76l-7.889 9.014L23.2 22h-7.4l-5.8-6.75L4.9 22H1.38l8.44-9.65L.8 2h7.6l5.24 6.2L18.244 2z' />
+  </svg>
+)
 
 function cx(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(' ')
@@ -173,11 +178,12 @@ export default function EcosystemGrid(props: { items: EcosystemItem[] }) {
     </IconBtn>
   ) : null}
 
-  {it.links.twitter ? (
-    <IconBtn href={it.links.twitter} label='X'>
-      <XMarkIcon className='h-4 w-4' />
-    </IconBtn>
-  ) : null}
+ {it.links.twitter ? (
+  <IconBtn href={it.links.twitter} label='X'>
+    <XIcon className='h-4 w-4' />
+  </IconBtn>
+) : null}
+
 </div>
 
             </div>

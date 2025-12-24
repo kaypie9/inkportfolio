@@ -2,6 +2,7 @@
 
 import TrackedHolders from '@/app/components/explore/TrackedHolders'
 import TopMcapCards from '@/app/components/explore/TopMcapCards'
+import TokensOverview from '@/app/components/explore/TokensOverview'
 
 import React from 'react'
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'
@@ -13,8 +14,8 @@ function cx(...a: Array<string | false | null | undefined>) {
 
 function Card(props: { title: string; subtitle?: string; right?: React.ReactNode; children: React.ReactNode }) {
   return (
-<div className={cx('eco-card eco-cardbox relative p-5 border border-white/10 bg-white/5')}>
-        <div className='flex items-start justify-between gap-3'>
+<div className={cx('eco-card eco-cardbox eco-card-static relative p-5')}>
+<div className='flex items-start justify-between gap-3'>
 
 
         <div>
@@ -30,7 +31,7 @@ function Card(props: { title: string; subtitle?: string; right?: React.ReactNode
 
 function EmptyLine(props: { text: string }) {
   return (
-<div className='eco-empty border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/60'>
+<div className='eco-empty px-4 py-3 text-sm'>
       {props.text}
     </div>
   )
@@ -50,7 +51,7 @@ export default function ExploreDashboard() {
 
         {/* main table */}
 <div className='lg:col-span-12'>
-          <Card title='Tracked Wallets' subtitle='track wallet holdings and txns'>
+          <Card title='Tracked Wallets' subtitle='monitor selected tokens'>
 <TrackedHolders />
           </Card>
         </div>
@@ -58,20 +59,9 @@ export default function ExploreDashboard() {
 
 {/* bottom row */}
 <div className='lg:col-span-12'>
-  <Card title='Whale Watch' subtitle='simple, readable whale events'>
-<div className='eco-table border border-white/10'>
-      <div className='grid grid-cols-12 gap-3 px-4 py-3 text-[11px] font-semibold text-white/55'>
-        <div className='col-span-4'>Event</div>
-        <div className='col-span-3'>Wallet</div>
-        <div className='col-span-3'>Token</div>
-        <div className='col-span-2 text-right'>Impact</div>
-      </div>
-      <div className='h-px bg-white/10' />
-      <div className='p-3'>
-        <EmptyLine text='API not ready yet. This will show: whale bought, whale sold, whale moved, entered top holders.' />
-      </div>
-    </div>
-  </Card>
+<Card title='Tokens Overview'>
+  <TokensOverview />
+</Card>
 </div>
       </div>
     </div>

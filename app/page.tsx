@@ -1371,7 +1371,7 @@ const pageSubtitles: Record<PageKey, string> = {
   Swap: 'swap & bridge to ink',
   Ink: 'simple overview of ink network metrics',
   Ecosystem: 'ink ecosystem',
-  Explore: 'explore',
+  Explore: 'token discovery and wallet tracking',
   Language: 'language',
 }
 
@@ -4169,7 +4169,6 @@ const valueUsd =
     <div className="positions-header-row">
       <div className="portfolio-title-stack">
         <div className="section-title">Explore</div>
-        <div className="section-subtitle">tokens, holders, whales</div>
       </div>
     </div>
 

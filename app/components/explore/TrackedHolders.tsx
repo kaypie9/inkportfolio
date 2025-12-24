@@ -212,19 +212,22 @@ function loadState(): WatchState {
         holdersCount: typeof t?.holdersCount === 'number' ? t.holdersCount : undefined,
         holders: Array.isArray(t?.holders) ? t.holders : undefined,
       })),
-      wallets: wallets.map((w: any) => ({
+            wallets: wallets.map((w: any) => ({
         address: String(w?.address ?? '').toLowerCase(),
         tokenId: String(w?.tokenId ?? '').toLowerCase(),
         label: w?.label,
         hidden: !!w?.hidden,
 
-        // wipe computed stats so it refetches fresh
-        balance: undefined,
-        net24h: undefined,
-        txns24h: undefined,
-        lastActionTs: undefined,
-        statsUpdatedAt: undefined,
+        // keep computed stats so page switches do not refetch
+        balance: typeof w?.balance === 'number' ? w.balance : undefined,
+        net24h: typeof w?.net24h === 'number' ? w.net24h : undefined,
+        txns24h: typeof w?.txns24h === 'number' ? w.txns24h : undefined,
+        lastActionTs: typeof w?.lastActionTs === 'number' ? w.lastActionTs : undefined,
+        lastActionType: w?.lastActionType === 'in' || w?.lastActionType === 'out' ? w.lastActionType : undefined,
+        last10: Array.isArray(w?.last10) ? w.last10 : undefined,
+        statsUpdatedAt: typeof w?.statsUpdatedAt === 'number' ? w.statsUpdatedAt : undefined,
       })),
+
     }
   } catch {
     return DEFAULT_STATE
@@ -258,6 +261,7 @@ const [now, setNow] = useState(0)
 const canPortal = typeof window !== 'undefined'
 const [tokenMenu, setTokenMenu] = useState<{ tokenId: string } | null>(null)
 const [walletMenu, setWalletMenu] = useState<{ tokenId: string; address: string } | null>(null)
+const [copiedAddr, setCopiedAddr] = useState<string | null>(null)
 
 const toggleTokenHidden = (tokenId: string) => {
   setState(prev => ({
@@ -403,7 +407,7 @@ useEffect(() => {
     const decMap = new Map<string, number>()
 
     for (const w of wallets) {
-      const stale = !w.statsUpdatedAt || nowMs() - w.statsUpdatedAt > 2 * 60 * 1000
+     const stale = !w.statsUpdatedAt
       if (!stale) continue
 
       const tokenId = w.tokenId.toLowerCase()
@@ -706,8 +710,8 @@ const fmtUsd = (n?: number | null) => {
 
 
       {/* table */}
-<div className='eco-table overflow-x-auto border border-white/10 bg-white/5'>
-<div className='grid gap-4 px-4 py-3 text-[11px] font-semibold text-white/55' style={GRID_STYLE}>
+<div className='eco-table overflow-x-auto'>
+<div className='eco-table-head grid gap-4 px-4 py-3 text-[11px] font-semibold' style={GRID_STYLE}>
   <div className='min-w-0'>Token</div>
   <div className='min-w-0'>Tracked wallets</div>
 
@@ -879,12 +883,24 @@ className='w-full min-w-0 text-left eco-tokenbtn'
 
   {/* copy */}
   <button
-    title='Copy address'
-    onClick={() => copyText(w.address)}
-    className='eco-iconbtn h-7 w-7'
-  >
-    <ClipboardIcon className='h-4 w-4' />
-  </button>
+  type='button'
+  onClick={() => {
+    copyText(w.address)
+    setCopiedAddr(w.address)
+    setTimeout(() => setCopiedAddr(null), 900)
+  }}
+className='eco-iconbtn h-7 w-7 relative eco-copybtn-inline'
+  title='Copy address'
+>
+  <ClipboardIcon className='h-4 w-4' />
+
+  {copiedAddr === w.address && (
+    <span className='eco-copyhint'>
+      address copied
+    </span>
+  )}
+</button>
+
 
 {/* open */}
 <button
@@ -961,7 +977,7 @@ className='w-full min-w-0 text-left eco-tokenbtn'
   value={newWallet}
   onChange={(e) => setNewWallet(e.target.value)}
   placeholder='Wallet address (0x...)'
-  className='eco-search h-9 w-full rounded-2xl px-3 text-sm bg-white/5 border border-white/10 text-white'
+  className='eco-search h-9 w-full rounded-2xl px-3 text-sm'
 />
 
 <input
@@ -978,7 +994,7 @@ className='w-full min-w-0 text-left eco-tokenbtn'
     }
   }}
   placeholder='Token contract (0x...)'
-  className='eco-search h-9 w-full rounded-2xl px-3 text-sm bg-white/5 border border-white/10 text-white'
+  className='eco-search h-9 w-full rounded-2xl px-3 text-sm'
 />
 
 {selectedToken ? (
@@ -1081,7 +1097,7 @@ label: undefined
           value={editLabel}
           onChange={(e) => setEditLabel(e.target.value)}
           placeholder='Example: Main wallet'
-          className='eco-search h-9 w-full rounded-2xl px-3 text-sm bg-white/5 border border-white/10 text-white'
+          className='eco-search h-9 w-full rounded-2xl px-3 text-sm'
         />
 
         <div className='text-xs text-white/50'>
