@@ -31,10 +31,11 @@ type TokenRow = {
 }
 
 const API = 'https://api.dexscreener.com/latest/dex/search?q='
-const TOKEN_API = 'https://api.dexscreener.com/latest/dex/tokens/'
+const DEX_TOKENS_V1 = 'https://api.dexscreener.com/tokens/v1/'
 const CHAIN_ID = 'ink'
 
 const EXPLORER_TOKENS_API = 'https://explorer.inkonchain.com/api/v2/tokens'
+const INKYPUMP_TOKENS_API = 'https://inkypump.com/api/tokens'
 
 
 const toNum = (v: any) => {
@@ -54,11 +55,48 @@ const scorePair = (p: DexPair) => {
   return liq * 1_000_000 + vol
 }
 
-const isBadToken = (sym: string) => {
+const isBadToken = (sym: string, name = '') => {
   const s = (sym || '').toUpperCase()
-if (s.includes('TELEGRAM') || s.includes('TRON') || s.includes('VIP') || s.includes('HTTP') || s.includes('HTTPS')) return true
-return s === 'WETH' || s === 'ETH' || s === 'USDC' || s === 'USDT' || s === 'DAI'
+  const n = (name || '').toUpperCase()
+
+  // obvious scam / junk
+  if (
+    s.includes('TELEGRAM') ||
+    s.includes('TRON') ||
+    s.includes('VIP') ||
+    s.includes('HTTP') ||
+    s.includes('HTTPS') ||
+    n.includes('TELEGRAM') ||
+    n.includes('TRON') ||
+    n.includes('VIP')
+  ) return true
+
+  // base assets & stables
+  if (
+    s === 'WETH' ||
+    s === 'ETH' ||
+    s === 'USDC' ||
+    s === 'USDT' ||
+    s === 'DAI'
+  ) return true
+
+  // pool / derivative / staked tokens
+  if (
+    n.includes('STAKED') ||
+    n.includes('WRAPPED') ||
+    n.includes('LP') ||
+    n.includes('POOL') ||
+    n.includes('AMM') ||
+    n.includes('VAULT') ||
+    n.includes('DEPOSIT') ||
+    n.includes('VOLATILE') ||
+    n.includes('V2') ||
+    s.includes('LP')
+  ) return true
+
+  return false
 }
+
 
 async function fetchJson(url: string, signal: AbortSignal) {
   const r = await fetch(url, {
@@ -114,59 +152,155 @@ type ExplorerToken = {
   type?: string
 }
 
-async function fetchExplorerTokens(signal: AbortSignal, limit = 200): Promise<ExplorerToken[]> {
+type InkyPumpToken = {
+  address?: string
+  name?: string
+  ticker?: string
+  image_url?: string | null
+  market_cap?: number | null
+  total_holders?: number | null
+  status?: string
+}
+
+async function fetchInkyPumpTokens(signal: AbortSignal, pages = 10): Promise<InkyPumpToken[]> {
   try {
-    const url = `${EXPLORER_TOKENS_API}?type=ERC-20&sort=fiat_value&order=desc&items_count=${limit}`
+    const out: InkyPumpToken[] = []
+
+    for (let page = 1; page <= pages; page++) {
+      const qs = new URLSearchParams({
+        page: String(page),
+        sortBy: 'mcap-high',
+        status: 'live,funding',
+        timeframe: '24h',
+      }).toString()
+
+      const url = `${INKYPUMP_TOKENS_API}?${qs}`
+
+      const r = await fetch(url, {
+        signal,
+        headers: { accept: 'application/json', 'user-agent': 'ink-dashboard' },
+        cache: 'no-store',
+      })
+
+      const txt = await r.text()
+      if (!r.ok) break
+
+      let j: any
+      try {
+        j = JSON.parse(txt)
+      } catch {
+        break
+      }
+
+      const items = Array.isArray(j?.tokens) ? j.tokens : []
+      if (!items.length) break
+
+      out.push(...items)
+
+      const totalPages = Number(j?.totalPages || 0)
+      if (Number.isFinite(totalPages) && totalPages > 0 && page >= totalPages) break
+    }
+
+    return out
+  } catch {
+    return []
+  }
+}
+
+
+async function fetchExplorerTokens(signal: AbortSignal, limit = 300): Promise<ExplorerToken[]> {
+  try {
+    const baseParams: Record<string, string> = {
+      type: 'ERC-20',
+      sort: 'fiat_value',
+      order: 'desc',
+      items_count: '50',
+    }
+
+    const out: ExplorerToken[] = []
+    let nextParams: Record<string, any> | null = null
+
+    // pull pages until we hit limit or no next page
+    while (out.length < limit) {
+      const qs = new URLSearchParams({
+        ...baseParams,
+        ...(nextParams ? Object.fromEntries(Object.entries(nextParams).map(([k, v]) => [k, String(v)])) : {}),
+      }).toString()
+
+      const url = `${EXPLORER_TOKENS_API}?${qs}`
+
+      const r = await fetch(url, {
+        signal,
+headers: {
+  accept: 'application/json',
+  'user-agent': 'ink-dashboard',
+},
+        cache: 'no-store',
+      })
+
+      const txt = await r.text()
+      if (!r.ok) break
+
+      let j: any
+      try {
+        j = JSON.parse(txt)
+      } catch {
+        break
+      }
+
+      const items = Array.isArray(j?.items) ? j.items : []
+      if (!items.length) break
+
+      out.push(...items)
+
+      // keyset pagination
+      nextParams = j?.next_page_params && typeof j.next_page_params === 'object' ? j.next_page_params : null
+      if (!nextParams) break
+    }
+
+    return out.slice(0, limit)
+  } catch {
+    return []
+  }
+}
+
+
+
+const chunk = <T,>(arr: T[], size: number) => {
+  const out: T[][] = []
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
+  return out
+}
+
+async function fetchDexPairsBatch(addresses: string[], signal: AbortSignal): Promise<DexPair[]> {
+  const out: DexPair[] = []
+  const groups = chunk(addresses, 30)
+
+  for (const g of groups) {
+    const url = `${DEX_TOKENS_V1}${CHAIN_ID}/${g.join(',')}`
+
     const r = await fetch(url, {
       signal,
-      headers: { accept: 'application/json' },
+      headers: { accept: 'application/json', 'user-agent': 'ink-dashboard' },
       cache: 'no-store',
     })
 
     const txt = await r.text()
-    if (!r.ok) return []
+    if (!r.ok) continue
 
     let j: any
     try {
       j = JSON.parse(txt)
     } catch {
-      return []
+      continue
     }
 
-    const items = Array.isArray(j?.items) ? j.items : []
-    return items
-  } catch {
-    return []
+    if (Array.isArray(j)) out.push(...j)
   }
+
+  return out
 }
 
-
-async function fetchDexTokenPairs(address: string, signal: AbortSignal): Promise<DexPair[]> {
-  try {
-    const r = await fetch(TOKEN_API + address, {
-      signal,
-      headers: {
-        accept: 'application/json',
-        'user-agent': 'ink-dashboard',
-      },
-      cache: 'no-store',
-    })
-
-    const txt = await r.text()
-    if (!r.ok) return []
-
-    let j: any
-    try {
-      j = JSON.parse(txt)
-    } catch {
-      return []
-    }
-
-    return Array.isArray(j?.pairs) ? j.pairs : []
-  } catch {
-    return []
-  }
-}
 
 export async function GET() {
   const ac = new AbortController()
@@ -212,14 +346,15 @@ const queries = Array.from(new Set([...baseQueries, ...extra])).slice(0, 60)
 
 
 // 0) base list from explorer first (always)
-const explorerItems = await fetchExplorerTokens(ac.signal, 200)
+const explorerItems = await fetchExplorerTokens(ac.signal, 600)
+const pumpItems = await fetchInkyPumpTokens(ac.signal, 8)
 
 const baseFromExplorer: TokenRow[] = explorerItems
   .map(it => {
     const address = String(it?.address_hash || it?.address || '').toLowerCase()
     const symbol = String(it?.symbol || '')
     if (!address || !symbol) return null
-    if (isBadToken(symbol)) return null
+if (isBadToken(symbol, it?.name)) return null
 
     return {
       address,
@@ -240,27 +375,56 @@ const baseFromExplorer: TokenRow[] = explorerItems
   })
   .filter(Boolean) as TokenRow[]
 
+  const baseFromPump: TokenRow[] = pumpItems
+  .map(it => {
+    const address = String(it?.address || '').toLowerCase()
+    const symbol = String(it?.ticker || '')
+    const name = String(it?.name || symbol)
+    if (!address || !symbol) return null
+    if (isBadToken(symbol, name)) return null
+
+    return {
+      address,
+      name,
+      symbol,
+      price: 0,
+mcap: toNum(it?.market_cap),
+      holders: typeof it?.total_holders === 'number' ? it.total_holders : null,
+      liquidity: 0,
+      volume24h: 0,
+      logo: it?.image_url || undefined,
+      pairUrl: undefined,
+      pairAddress: undefined,
+    } as TokenRow
+  })
+  .filter(Boolean) as TokenRow[]
+
+
 // 1) enrich only top 80 with Dexscreener token endpoint
-const topAddrs = baseFromExplorer.slice(0, 80).map(t => t.address)
-const enrich = await Promise.allSettled(topAddrs.map(a => fetchDexTokenPairs(a, ac.signal)))
-
-const bestByToken = new Map<string, DexPair>()
-for (const res of enrich) {
-  if (res.status !== 'fulfilled') continue
-  const inkOnly = (res.value || []).filter(p => (p?.chainId || '').toLowerCase() === CHAIN_ID)
-
-  for (const p of inkOnly) {
-    const addr = (p?.baseToken?.address || '').toLowerCase()
-    const sym = p?.baseToken?.symbol || ''
-    if (!addr) continue
-    if (isBadToken(sym)) continue
-
-    const prev = bestByToken.get(addr)
-    if (!prev || scorePair(p) > scorePair(prev)) bestByToken.set(addr, p)
-  }
+// 1) build seed list from explorer + inkypump, then Dex batch enrich
+const seedMap = new Map<string, TokenRow>()
+for (const t of [...baseFromExplorer, ...baseFromPump]) {
+  if (!seedMap.has(t.address)) seedMap.set(t.address, t)
 }
 
-const mergedBase: TokenRow[] = baseFromExplorer.map(t => {
+const seed = Array.from(seedMap.values())
+
+const addrsForDex = seed.slice(0, 600).map(t => t.address)
+const dexPairs = await fetchDexPairsBatch(addrsForDex, ac.signal)
+
+const bestByToken = new Map<string, DexPair>()
+for (const p of dexPairs) {
+  const addr = (p?.baseToken?.address || '').toLowerCase()
+  const sym = p?.baseToken?.symbol || ''
+  if (!addr) continue
+  if (isBadToken(sym, p?.baseToken?.name)) continue
+
+  const prev = bestByToken.get(addr)
+  if (!prev || scorePair(p) > scorePair(prev)) bestByToken.set(addr, p)
+}
+
+
+const mergedBase: TokenRow[] = seed.map(t => {
   const p = bestByToken.get(t.address)
   if (!p) return t
   return {
@@ -268,7 +432,7 @@ const mergedBase: TokenRow[] = baseFromExplorer.map(t => {
     name: p?.baseToken?.name || t.name,
     symbol: p?.baseToken?.symbol || t.symbol,
     price: toNum(p?.priceUsd) || t.price,
-    mcap: pickMcap(p) || t.mcap,
+mcap: Math.max(pickMcap(p), t.mcap),
     liquidity: toNum(p?.liquidity?.usd),
     volume24h: toNum(p?.volume?.h24),
     logo: p?.info?.imageUrl || t.logo,
@@ -331,6 +495,7 @@ const explorerFallback: TokenRow[] = explorerItems
   .filter(Boolean) as TokenRow[]
 
 const finalTokens = [...merged, ...explorerFallback]
+  .filter(t => t.mcap > 0) // now includes Dex mcap, not only explorer mcap
   .sort((a, b) => (b.mcap - a.mcap) || (b.liquidity - a.liquidity) || (b.volume24h - a.volume24h))
 
 
