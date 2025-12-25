@@ -18,15 +18,24 @@ type TokenRow = {
   pairAddress?: string
 }
 
-let memTokens: TokenRow[] | null = null
-let memAt = 0
+type HoldRow = { rank: number; address: string; value: any; pct: any }
 
-const MEM_TTL_MS = 10 * 1000
+const getTokCache = () => (globalThis as any).__ink_tokens_overview_cache__ as TokenRow[] | null | undefined
+const setTokCache = (v: TokenRow[] | null) => {
+  ;(globalThis as any).__ink_tokens_overview_cache__ = v
+}
 
+const getHoldCache = () =>
+  ((globalThis as any).__ink_holders_cache__ as Map<string, HoldRow[]> | undefined) ??
+  new Map<string, HoldRow[]>()
 
-const PAGE_SIZE = 10
+const setHoldCache = (m: Map<string, HoldRow[]>) => {
+  ;(globalThis as any).__ink_holders_cache__ = m
+}
 
-const shortAddr = (a: string) => a.slice(0, 6) + '…' + a.slice(-4)
+const PAGE_SIZE = 25
+
+const shortAddr = (a: string) => a.slice(0, 6) + '...' + a.slice(-4)
 
 const fmtUsd = (n: number) => {
   if (!Number.isFinite(n)) return '–'
@@ -35,6 +44,18 @@ const fmtUsd = (n: number) => {
   if (n >= 1e3) return `$${(n / 1e3).toFixed(1)}k`
   return `$${n.toFixed(2)}`
 }
+
+const fmtAmountPretty = (v: any) => {
+  if (v == null) return ''
+  const n = Number(v)
+  if (!Number.isFinite(n)) return String(v)
+
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(n)
+}
+
 
 const fmtPrice = (n: number) => {
   if (!Number.isFinite(n)) return '–'
@@ -62,21 +83,28 @@ export default function TokensOverview() {
   const [sortBy, setSortBy] = useState<SortKey>('mcap')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [page, setPage] = useState(0)
-const [hideZeroLiq, setHideZeroLiq] = useState(false)
 const [copied, setCopied] = useState(false)
+
+const [holdersOpen, setHoldersOpen] = useState(false)
+const [holdersLoading, setHoldersLoading] = useState(false)
+const [holdersErr, setHoldersErr] = useState<string | null>(null)
+const [holdersToken, setHoldersToken] = useState<TokenRow | null>(null)
+const [topHolders, setTopHolders] = useState<Array<{ rank: number; address: string; value: any; pct: any }>>([])
 
   // fetch real data
 useEffect(() => {
   let alive = true
 
-  // don’t refetch when switching pages (same session)
-  if (memTokens && Date.now() - memAt < MEM_TTL_MS) {
-    setTokens(memTokens)
-    setLoading(false)
-    return () => {
-      alive = false
-    }
+// don’t refetch when switching pages (same session)
+const cached = getTokCache()
+if (cached) {
+  setTokens(cached)
+  setLoading(false)
+  return () => {
+    alive = false
   }
+}
+
 
   ;(async () => {
     try {
@@ -86,15 +114,16 @@ useEffect(() => {
       if (!alive) return
 
       const list = Array.isArray(j?.tokens) ? j.tokens : []
-      memTokens = list
-      memAt = Date.now()
+      setTokCache(list)
+setTokens(list)
+setHoldCache(new Map())
 
-      setTokens(list)
+
     } catch {
       if (!alive) return
-      memTokens = []
-      memAt = Date.now()
-      setTokens([])
+      setTokCache([])
+setTokens([])
+
     } finally {
       if (alive) setLoading(false)
     }
@@ -111,7 +140,7 @@ useEffect(() => {
   // reset page on controls change
  useEffect(() => {
   setPage(0)
-}, [search, sortBy, sortDir, hideZeroLiq])
+}, [search, sortBy, sortDir])
 
 useEffect(() => {
   if (!copied) return
@@ -134,10 +163,52 @@ const sortArrow = (k: SortKey) => {
   return sortDir === 'desc' ? '↓' : '↑'
 }
 
+async function openHolders(t: TokenRow) {
+setHoldersToken(t)
+setHoldersOpen(true)
+setHoldersErr(null)
+setHoldersLoading(true)
+
+
+  const key = t.address.toLowerCase()
+const holdCache = getHoldCache()
+const cached = holdCache.get(key)
+
+if (cached) {
+  setHoldersErr(null)
+  setTopHolders(cached)
+  setHoldersLoading(false)
+  return
+}
+
+
+
+  setHoldersLoading(true)
+  setTopHolders([])
+
+  try {
+    const r = await fetch(`/api/explore/top-holders?address=${t.address}`, { cache: 'no-store' })
+    const j = await r.json()
+    if (!j?.ok) throw new Error(j?.error || 'failed')
+
+    const holders = Array.isArray(j?.holders) ? j.holders : []
+    setTopHolders(holders)
+
+    // save to session cache
+holdCache.set(key, holders)
+setHoldCache(holdCache)
+  } catch (e: any) {
+    setHoldersErr(String(e?.message || e))
+  } finally {
+    setHoldersLoading(false)
+  }
+}
+
+
+
 
   const filtered = useMemo(() => {
     return tokens.filter(t => {
-      if (hideZeroLiq && t.liquidity === 0) return false
       if (!search) return true
       const q = search.toLowerCase()
       return (
@@ -146,7 +217,7 @@ const sortArrow = (k: SortKey) => {
         t.address.toLowerCase().includes(q)
       )
     })
-  }, [tokens, search, hideZeroLiq])
+  }, [tokens, search])
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -165,100 +236,235 @@ return (
         contract copied
       </div>
     )}
-      {/* controls */}
-      <div className='flex justify-end gap-3 mb-3'>
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder='Search token or address'
-          className='eco-input w-56'
-          onKeyDown={e => {
-            if (e.key === 'Escape') setSearch('')
-          }}
-        />
-        <button
-          className={'eco-btn-sm ' + (hideZeroLiq ? 'on' : '')}
-          onClick={() => setHideZeroLiq(v => !v)}
-        >
-          {hideZeroLiq ? 'hide zero liq' : 'show zero liq'}
-        </button>
+
+    {holdersOpen && (
+      <div className='eco-modalback' onClick={() => setHoldersOpen(false)}>
+        <div className='eco-modal' onClick={e => e.stopPropagation()}>
+          <div className='eco-modalhead'>
+            <div>
+              <div className='eco-modaltitle'>Top holders</div>
+              {holdersToken ? (
+                <div className='eco-modalsub'>
+                  {holdersToken.symbol} • {shortAddr(holdersToken.address)}
+                </div>
+              ) : null}
+            </div>
+
+            <button
+              type='button'
+              className='eco-modalx'
+              onClick={() => setHoldersOpen(false)}
+            >
+              ×
+            </button>
+          </div>
+
+          <div className='eco-modalbody'>
+            {holdersLoading ? (
+  <div className='eco-holderlist'>
+    {Array.from({ length: 8 }).map((_, i) => (
+      <div key={i} className='eco-holderrow'>
+        <div className='eco-holderrank'>
+          <span className='ink-skeleton ink-skeleton-xs' />
+        </div>
+
+        <div className='eco-holderaddr'>
+          <span className='ink-skeleton ink-skeleton-lg w-full' />
+        </div>
+
+        <div className='eco-holdermeta'>
+          <div className='eco-holderamt'>
+            <span className='ink-skeleton ink-skeleton-sm' />
+          </div>
+          <div className='eco-holderpct2'>
+            <span className='ink-skeleton ink-skeleton-xs' />
+          </div>
+        </div>
       </div>
+    ))}
+  </div>
+)
+
+ : holdersErr ? (
+              <div className='eco-modalerr text-sm'>{holdersErr}</div>
+            ) : topHolders.length ? (
+              <div className='eco-holderlist'>
+                {topHolders.slice(0, 25).map(h => (
+                  <div key={h.rank} className='eco-holderrow'>
+                    <div className='eco-holderrank'>#{h.rank}</div>
+
+                    <div
+                      className='eco-holderaddr'
+                      onClick={() => {
+                        navigator.clipboard.writeText(h.address)
+                        setCopied(true)
+                      }}
+                      title='Copy address'
+                    >
+                      {h.address}
+                    </div>
+
+                    <div className='eco-holdermeta'>
+  <div className='eco-holderamt'>
+{h.value != null && String(h.value) !== '' ? `${fmtAmountPretty(h.value)} ${holdersToken?.symbol || ''}` : ''}
+  </div>
+
+  <div className='eco-holderpct2'>
+    {h.pct != null && Number.isFinite(Number(h.pct)) ? `${Number(h.pct).toFixed(4)}%` : ''}
+  </div>
+</div>
+
+
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className='text-white/50 text-sm'>No holders data</div>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+
+      {/* controls */}
+      <div className='flex items-center justify-between gap-3 mb-3'>
+        <div className='text-xs text-white/50'>
+          showing {rows.length} of {sorted.length}
+          {sorted.length > 0 ? `  page ${page + 1} of ${Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))}` : ''}
+        </div>
+
+        <div className='flex justify-end gap-3'>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder='Search token or address'
+className='eco-input w-64'
+            onKeyDown={e => {
+              if (e.key === 'Escape') setSearch('')
+            }}
+          />
+        </div>
+      </div>
+
 
       <div className='eco-table'>
         {/* header */}
-        <div className='grid grid-cols-12 gap-3 px-4 py-3 text-[11px] font-semibold sticky top-0 z-10'>
+<div className='eco-table-head eco-tablehead grid grid-cols-12 gap-3 px-4 py-3 items-center text-[11px] font-semibold'>
   <div className='col-span-5'>Token</div>
 
   <div
-    className='col-span-2 text-right cursor-pointer hover:text-white select-none'
+className='col-span-2 text-right cursor-pointer eco-sort select-none'
     onClick={() => toggleSort('price')}
     role='button'
   >
     <span className='inline-flex items-center justify-end gap-2 w-full'>
       <span>Price</span>
-      {sortBy === 'price' && <span className='text-white/70'>{sortArrow('price')}</span>}
+      {sortBy === 'price' && <span className='eco-sort-arrow'>{sortArrow('price')}</span>}
     </span>
   </div>
 
   <div
-    className='col-span-2 text-right cursor-pointer hover:text-white select-none'
+className='col-span-2 text-right cursor-pointer eco-sort select-none'
     onClick={() => toggleSort('mcap')}
     role='button'
   >
     <span className='inline-flex items-center justify-end gap-2 w-full'>
       <span>Mcap</span>
-      {sortBy === 'mcap' && <span className='text-white/70'>{sortArrow('mcap')}</span>}
+{sortBy === 'mcap' && <span className='eco-sort-arrow'>{sortArrow('mcap')}</span>}
     </span>
   </div>
 
   <div
-    className='col-span-1 text-right cursor-pointer hover:text-white select-none'
+    className='col-span-1 text-center cursor-pointer eco-sort select-none'
     onClick={() => toggleSort('holders')}
     role='button'
   >
     <span className='inline-flex items-center justify-end gap-2 w-full'>
       <span>Holders</span>
-      {sortBy === 'holders' && <span className='text-white/70'>{sortArrow('holders')}</span>}
+{sortBy === 'holders' && <span className='eco-sort-arrow'>{sortArrow('holders')}</span>}
     </span>
   </div>
 
   <div
-    className='col-span-1 text-right cursor-pointer hover:text-white select-none'
+    className='col-span-1 text-center cursor-pointer eco-sort select-none'
     onClick={() => toggleSort('liquidity')}
     role='button'
   >
     <span className='inline-flex items-center justify-end gap-2 w-full'>
       <span>Liquidity</span>
-      {sortBy === 'liquidity' && <span className='text-white/70'>{sortArrow('liquidity')}</span>}
+{sortBy === 'liquidity' && <span className='eco-sort-arrow'>{sortArrow('liquidity')}</span>}
     </span>
   </div>
 
   <div
-    className='col-span-1 text-right cursor-pointer hover:text-white select-none'
+    className='col-span-1 text-center cursor-pointer eco-sort select-none'
     onClick={() => toggleSort('volume24h')}
     role='button'
   >
     <span className='inline-flex items-center justify-end gap-2 w-full'>
       <span>Vol 24h</span>
-      {sortBy === 'volume24h' && <span className='text-white/70'>{sortArrow('volume24h')}</span>}
+{sortBy === 'volume24h' && <span className='eco-sort-arrow'>{sortArrow('volume24h')}</span>}
     </span>
   </div>
 </div>
 
 
-        <div className='h-px bg-white/10' />
+<div className='eco-tabledivider' />
 
         {/* body */}
         {loading ? (
-          <div className='p-4 text-sm text-white/40'>Loading tokens…</div>
-        ) : rows.length === 0 ? (
-          <div className='p-4 text-sm text-white/40'>No tokens found</div>
-        ) : (
-          <div className='divide-y divide-white/10'>
+  <div className='eco-divide'>
+    {Array.from({ length: 10 }).map((_, i) => (
+      <div
+        key={i}
+        className='eco-tablerow grid grid-cols-12 gap-3 px-4 py-3 text-sm cursor-default'
+      >
+        <div className='col-span-5'>
+          <div className='flex items-center gap-3'>
+            <span className='ink-skeleton ink-skeleton-logo' />
+            <div className='min-w-0'>
+              <div>
+                <span className='ink-skeleton ink-skeleton-lg' />
+                <span className='ml-2 ink-skeleton ink-skeleton-sm' />
+              </div>
+              <div className='mt-2'>
+                <span className='ink-skeleton ink-skeleton-sm' />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className='col-span-2 text-right tabular-nums'>
+          <span className='ink-skeleton ink-skeleton-sm' />
+        </div>
+
+        <div className='col-span-2 text-right tabular-nums'>
+          <span className='ink-skeleton ink-skeleton-sm' />
+        </div>
+
+        <div className='col-span-1 text-center tabular-nums'>
+          <span className='ink-skeleton ink-skeleton-xs' />
+        </div>
+
+        <div className='col-span-1 text-right tabular-nums'>
+          <span className='ink-skeleton ink-skeleton-sm' />
+        </div>
+
+        <div className='col-span-1 text-right tabular-nums'>
+          <span className='ink-skeleton ink-skeleton-sm' />
+        </div>
+      </div>
+    ))}
+  </div>
+) : rows.length === 0 ? (
+  <div className='p-4 text-sm eco-muted'>No tokens found</div>
+) : (
+  <div className='eco-divide'>
+
             {rows.map(t => (
               <div
                 key={t.address}
-className='grid grid-cols-12 gap-3 px-4 py-3 text-sm hover:bg-white/5 transition-colors cursor-default'
+className='eco-tablerow grid grid-cols-12 gap-3 px-4 py-3 text-sm transition-colors cursor-default'
               >
 <div className='col-span-5 cursor-pointer'>
                   <div className='flex items-center gap-3'>
@@ -287,16 +493,16 @@ className='grid grid-cols-12 gap-3 px-4 py-3 text-sm hover:bg-white/5 transition
 
     window.open(url, '_blank', 'noopener,noreferrer')
   }}
-  className='font-medium hover:underline text-left'
+className='eco-tokenlink text-left'
 >
   {t.name}
-  <span className='ml-1 text-white/50 text-xs'>
+<span className='ml-1 eco-sub text-xs'>
     {t.symbol}
   </span>
 </button>
 
                       <div
-                        className='text-[11px] text-white/40 hover:text-white'
+className='text-[11px] eco-copyaddr'
                         onClick={e => {
                           e.stopPropagation()
 navigator.clipboard.writeText(t.address)
@@ -309,11 +515,27 @@ setCopied(true)
                   </div>
                 </div>
 
-<div className='col-span-2 text-right'>{fmtPrice(t.price)}</div>
-                <div className='col-span-2 text-right'>{fmtUsd(t.mcap)}</div>
-                <div className='col-span-1 text-right'>{fmtNum(t.holders)}</div>
-                <div className='col-span-1 text-right'>{fmtUsd(t.liquidity)}</div>
-                <div className='col-span-1 text-right'>{fmtUsd(t.volume24h)}</div>
+<div className='col-span-2 text-right tabular-nums'>{fmtPrice(t.price)}</div>
+<div className='col-span-2 text-right tabular-nums'>{fmtUsd(t.mcap)}</div>
+<div className='col-span-1 text-center tabular-nums'>
+  {t.holders ? (
+    <button
+      type='button'
+      className='eco-holderslink'
+      onClick={e => {
+        e.stopPropagation()
+        openHolders(t)
+      }}
+      title='View top holders'
+    >
+      {fmtNum(t.holders)}
+    </button>
+  ) : (
+<span className='eco-muted'>{fmtNum(t.holders)}</span>
+  )}
+</div>
+<div className='col-span-1 text-right tabular-nums'>{fmtUsd(t.liquidity)}</div>
+<div className='col-span-1 text-right tabular-nums'>{fmtUsd(t.volume24h)}</div>
               </div>
             ))}
           </div>

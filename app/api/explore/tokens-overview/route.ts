@@ -13,10 +13,13 @@ type DexPair = {
   liquidity?: { usd?: number }
   volume?: { h24?: number }
   baseToken?: { address?: string; name?: string; symbol?: string }
+  quoteToken?: { address?: string; name?: string; symbol?: string }
   info?: { imageUrl?: string }
 }
 
+
 type TokenRow = {
+  source?: 'pump' | 'explorer' | 'dex'
   address: string
   name: string
   symbol: string
@@ -32,22 +35,37 @@ type TokenRow = {
 
 const API = 'https://api.dexscreener.com/latest/dex/search?q='
 const DEX_TOKENS_V1 = 'https://api.dexscreener.com/tokens/v1/'
+const DEX_LATEST_TOKENS = 'https://api.dexscreener.com/latest/dex/tokens/'
+
 const CHAIN_ID = 'ink'
 
 const EXPLORER_TOKENS_API = 'https://explorer.inkonchain.com/api/v2/tokens'
 const INKYPUMP_TOKENS_API = 'https://inkypump.com/api/tokens'
+const ETH_PRICE_API = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'
 
 
 const toNum = (v: any) => {
-  const n = Number(v)
+  if (v === null || v === undefined) return 0
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0
+
+  const s = String(v).trim()
+  if (!s) return 0
+
+  // remove currency symbols and commas
+  const cleaned = s.replace(/[^0-9.+-eE]/g, '')
+  const n = Number(cleaned)
   return Number.isFinite(n) ? n : 0
 }
+
 
 const pickMcap = (p: DexPair) => {
   const mc = typeof p.marketCap === 'number' ? p.marketCap : 0
   const fdv = typeof p.fdv === 'number' ? p.fdv : 0
   return mc > 0 ? mc : fdv
 }
+
+const normChain = (chainId: string | undefined) => (String(chainId || CHAIN_ID).toLowerCase() || CHAIN_ID)
+const keyFor = (chainId: string | undefined, address: string) => `${normChain(chainId)}:${address.toLowerCase()}`
 
 const scorePair = (p: DexPair) => {
   const liq = toNum(p?.liquidity?.usd)
@@ -81,18 +99,18 @@ const isBadToken = (sym: string, name = '') => {
   ) return true
 
   // pool / derivative / staked tokens
-  if (
-    n.includes('STAKED') ||
-    n.includes('WRAPPED') ||
-    n.includes('LP') ||
-    n.includes('POOL') ||
-    n.includes('AMM') ||
-    n.includes('VAULT') ||
-    n.includes('DEPOSIT') ||
-    n.includes('VOLATILE') ||
-    n.includes('V2') ||
-    s.includes('LP')
-  ) return true
+if (
+  n.includes('STAKED') ||
+  n.includes('LP') ||
+  n.includes('POOL') ||
+  n.includes('AMM') ||
+  n.includes('VAULT') ||
+  n.includes('DEPOSIT') ||
+  n.includes('VOLATILE') ||
+  n.includes('V2') ||
+  s.includes('LP')
+) return true
+
 
   return false
 }
@@ -160,109 +178,129 @@ type InkyPumpToken = {
   market_cap?: number | null
   total_holders?: number | null
   status?: string
+
+  // inkypump extra fields (they may exist)
+  liquidity?: number | string | null
+  liquidity_usd?: number | string | null
+  liquidityUsd?: number | string | null
+  volume_24h?: number | string | null
+  volume24h?: number | string | null
+  volume_usd_24h?: number | string | null
 }
 
-async function fetchInkyPumpTokens(signal: AbortSignal, pages = 10): Promise<InkyPumpToken[]> {
+async function fetchEthPrice(signal: AbortSignal): Promise<number> {
   try {
-    const out: InkyPumpToken[] = []
+    const r = await fetch(ETH_PRICE_API, { signal, cache: 'no-store' })
+    const j = await r.json()
+    const p = Number(j?.ethereum?.usd)
+    return Number.isFinite(p) && p > 0 ? p : 0
+  } catch {
+    return 0
+  }
+}
 
-    for (let page = 1; page <= pages; page++) {
-      const qs = new URLSearchParams({
-        page: String(page),
-        sortBy: 'mcap-high',
-        status: 'live,funding',
-        timeframe: '24h',
-      }).toString()
 
-      const url = `${INKYPUMP_TOKENS_API}?${qs}`
+async function fetchInkyPumpTokens(signal: AbortSignal): Promise<InkyPumpToken[]> {
+  try {
+const qs = new URLSearchParams({
+  page: '1',
+  sortBy: 'mcap-high',
+}).toString()
 
-      const r = await fetch(url, {
-        signal,
-        headers: { accept: 'application/json', 'user-agent': 'ink-dashboard' },
-        cache: 'no-store',
-      })
+const url = `${INKYPUMP_TOKENS_API}?${qs}`
 
-      const txt = await r.text()
-      if (!r.ok) break
+const r = await fetch(url, {
+  signal,
+  headers: { accept: 'application/json', 'user-agent': 'ink-dashboard' },
+  cache: 'no-store',
+})
 
-      let j: any
-      try {
-        j = JSON.parse(txt)
-      } catch {
-        break
-      }
+const txt = await r.text()
+if (!r.ok) return []
 
-      const items = Array.isArray(j?.tokens) ? j.tokens : []
-      if (!items.length) break
+let j: any
+try {
+  j = JSON.parse(txt)
+} catch {
+  return []
+}
 
-      out.push(...items)
-
-      const totalPages = Number(j?.totalPages || 0)
-      if (Number.isFinite(totalPages) && totalPages > 0 && page >= totalPages) break
-    }
-
-    return out
+return Array.isArray(j?.tokens) ? j.tokens : []
   } catch {
     return []
   }
 }
 
 
-async function fetchExplorerTokens(signal: AbortSignal, limit = 300): Promise<ExplorerToken[]> {
+async function fetchExplorerTokens(
+  signal: AbortSignal,
+  limit = 50
+): Promise<{ items: ExplorerToken[]; status: number; url: string; bodyHead: string }> {
   try {
-    const baseParams: Record<string, string> = {
+    // try 1: full params
+    const qs1 = new URLSearchParams({
       type: 'ERC-20',
       sort: 'fiat_value',
       order: 'desc',
       items_count: '50',
-    }
+    }).toString()
 
-    const out: ExplorerToken[] = []
-    let nextParams: Record<string, any> | null = null
+    const url1 = `${EXPLORER_TOKENS_API}?${qs1}`
 
-    // pull pages until we hit limit or no next page
-    while (out.length < limit) {
-      const qs = new URLSearchParams({
-        ...baseParams,
-        ...(nextParams ? Object.fromEntries(Object.entries(nextParams).map(([k, v]) => [k, String(v)])) : {}),
-      }).toString()
+    const r1 = await fetch(url1, {
+      signal,
+      headers: { accept: 'application/json', 'user-agent': 'ink-dashboard' },
+      cache: 'no-store',
+    })
 
-      const url = `${EXPLORER_TOKENS_API}?${qs}`
-
-      const r = await fetch(url, {
-        signal,
-headers: {
-  accept: 'application/json',
-  'user-agent': 'ink-dashboard',
-},
-        cache: 'no-store',
-      })
-
-      const txt = await r.text()
-      if (!r.ok) break
-
-      let j: any
+    const t1 = await r1.text()
+    if (r1.ok) {
       try {
-        j = JSON.parse(txt)
+        const j1: any = JSON.parse(t1)
+        const items1 = Array.isArray(j1?.items) ? j1.items : []
+        if (items1.length) return { items: items1.slice(0, limit), status: 200, url: url1, bodyHead: '' }
       } catch {
-        break
+        // fall through to retry
       }
-
-      const items = Array.isArray(j?.items) ? j.items : []
-      if (!items.length) break
-
-      out.push(...items)
-
-      // keyset pagination
-      nextParams = j?.next_page_params && typeof j.next_page_params === 'object' ? j.next_page_params : null
-      if (!nextParams) break
     }
 
-    return out.slice(0, limit)
-  } catch {
-    return []
+    // try 2: minimal params (some explorers reject sort keys sometimes)
+    const qs2 = new URLSearchParams({
+      type: 'ERC-20',
+      items_count: '50',
+    }).toString()
+
+    const url2 = `${EXPLORER_TOKENS_API}?${qs2}`
+
+    const r2 = await fetch(url2, {
+      signal,
+      headers: { accept: 'application/json', 'user-agent': 'ink-dashboard' },
+      cache: 'no-store',
+    })
+
+    const t2 = await r2.text()
+    if (!r2.ok) return { items: [], status: r2.status, url: url2, bodyHead: t2.slice(0, 180) }
+
+    let j2: any
+    try {
+      j2 = JSON.parse(t2)
+    } catch {
+      return { items: [], status: 0, url: url2, bodyHead: t2.slice(0, 180) }
+    }
+
+    const items2 = Array.isArray(j2?.items) ? j2.items : []
+    return { items: items2.slice(0, limit), status: 200, url: url2, bodyHead: '' }
+  } catch (e: any) {
+    return {
+      items: [],
+      status: -1,
+      url: EXPLORER_TOKENS_API,
+      bodyHead: String(e?.message || 'fetch failed').slice(0, 180),
+    }
   }
 }
+
+
 
 
 
@@ -298,8 +336,34 @@ async function fetchDexPairsBatch(addresses: string[], signal: AbortSignal): Pro
     if (Array.isArray(j)) out.push(...j)
   }
 
-  return out
+return out
 }
+
+async function fetchDexLatestTokenPairs(address: string, signal: AbortSignal): Promise<DexPair[]> {
+  try {
+    const url = `${DEX_LATEST_TOKENS}${address}`
+    const r = await fetch(url, {
+      signal,
+      headers: { accept: 'application/json', 'user-agent': 'ink-dashboard' },
+      cache: 'no-store',
+    })
+
+    const txt = await r.text()
+    if (!r.ok) return []
+
+    let j: any
+    try {
+      j = JSON.parse(txt)
+    } catch {
+      return []
+    }
+
+    return Array.isArray(j?.pairs) ? j.pairs : []
+  } catch {
+    return []
+  }
+}
+
 
 
 export async function GET() {
@@ -346,8 +410,10 @@ const queries = Array.from(new Set([...baseQueries, ...extra])).slice(0, 60)
 
 
 // 0) base list from explorer first (always)
-const explorerItems = await fetchExplorerTokens(ac.signal, 600)
-const pumpItems = await fetchInkyPumpTokens(ac.signal, 8)
+const explorerRes = await fetchExplorerTokens(ac.signal, 50)
+const explorerItems = explorerRes.items
+const ethPriceUsd = await fetchEthPrice(ac.signal)
+const pumpItems = await fetchInkyPumpTokens(ac.signal)
 
 const baseFromExplorer: TokenRow[] = explorerItems
   .map(it => {
@@ -356,7 +422,8 @@ const baseFromExplorer: TokenRow[] = explorerItems
     if (!address || !symbol) return null
 if (isBadToken(symbol, it?.name)) return null
 
-    return {
+        return {
+      source: 'explorer',
       address,
       name: String(it?.name || symbol),
       symbol,
@@ -383,19 +450,49 @@ if (isBadToken(symbol, it?.name)) return null
     if (!address || !symbol) return null
     if (isBadToken(symbol, name)) return null
 
-    return {
-      address,
-      name,
-      symbol,
-      price: 0,
-mcap: toNum(it?.market_cap),
-      holders: typeof it?.total_holders === 'number' ? it.total_holders : null,
-      liquidity: 0,
-      volume24h: 0,
-      logo: it?.image_url || undefined,
-      pairUrl: undefined,
-      pairAddress: undefined,
-    } as TokenRow
+const rawLiq = toNum(
+  (it as any)?.liquidity ??
+  (it as any)?.liquidity_eth ??
+  (it as any)?.liquidity_usd ??
+  (it as any)?.liquidityUsd
+)
+
+const rawVol = toNum(
+  (it as any)?.volume24h ??
+  (it as any)?.volume_24h ??
+  (it as any)?.volume_eth_24h ??
+  (it as any)?.volume_usd_24h
+)
+
+const pumpMcap = toNum((it as any)?.market_cap)
+const pumpPriceEth = toNum((it as any)?.price ?? (it as any)?.price_eth ?? 0)
+
+// if inkypump already gave usd, do not multiply again
+const pumpLiqIsUsd = (it as any)?.liquidity_usd != null || (it as any)?.liquidityUsd != null
+const pumpVolIsUsd = (it as any)?.volume_usd_24h != null
+
+return {
+  source: 'pump',
+  address,
+  name,
+  symbol,
+
+  // price: inkypump is ETH, convert to USD
+  price: ethPriceUsd > 0 && pumpPriceEth > 0 ? pumpPriceEth * ethPriceUsd : 0,
+
+  // mcap: inkypump is ETH, convert to USD
+  mcap: ethPriceUsd > 0 ? pumpMcap * ethPriceUsd : pumpMcap,
+
+  // liquidity and volume: prefer usd fields if they exist
+  liquidity: pumpLiqIsUsd ? rawLiq : (ethPriceUsd > 0 ? rawLiq * ethPriceUsd : rawLiq),
+  volume24h: pumpVolIsUsd ? rawVol : (ethPriceUsd > 0 ? rawVol * ethPriceUsd : rawVol),
+
+  holders: typeof it?.total_holders === 'number' ? it.total_holders : null,
+  logo: it?.image_url || undefined,
+  pairUrl: undefined,
+  pairAddress: undefined,
+} as TokenRow
+
   })
   .filter(Boolean) as TokenRow[]
 
@@ -403,43 +500,152 @@ mcap: toNum(it?.market_cap),
 // 1) enrich only top 80 with Dexscreener token endpoint
 // 1) build seed list from explorer + inkypump, then Dex batch enrich
 const seedMap = new Map<string, TokenRow>()
-for (const t of [...baseFromExplorer, ...baseFromPump]) {
+
+// pump first so they never get pushed out
+for (const t of baseFromPump) {
+  if (!seedMap.has(t.address)) seedMap.set(t.address, t)
+}
+for (const t of baseFromExplorer) {
   if (!seedMap.has(t.address)) seedMap.set(t.address, t)
 }
 
 const seed = Array.from(seedMap.values())
 
-const addrsForDex = seed.slice(0, 600).map(t => t.address)
-const dexPairs = await fetchDexPairsBatch(addrsForDex, ac.signal)
 
-const bestByToken = new Map<string, DexPair>()
-for (const p of dexPairs) {
-  const addr = (p?.baseToken?.address || '').toLowerCase()
-  const sym = p?.baseToken?.symbol || ''
-  if (!addr) continue
-  if (isBadToken(sym, p?.baseToken?.name)) continue
+const pumpAddrs = baseFromPump.map(t => t.address)
+const otherAddrs = seed
+  .filter(t => !pumpAddrs.includes(t.address))
+  .map(t => t.address)
 
-  const prev = bestByToken.get(addr)
-  if (!prev || scorePair(p) > scorePair(prev)) bestByToken.set(addr, p)
+// Dex only for tokens that need enrichment (missing liq/vol/pair)
+const needDex = seed.filter(t => {
+  const hasPair = !!t.pairUrl || !!t.pairAddress
+  const hasLiq = t.liquidity > 0
+  const hasVol = t.volume24h > 0
+  return !hasPair || !hasLiq || !hasVol
+})
+
+// Dex only for explorer tokens (pump stays authoritative)
+const explorerNeedDex = seed.filter(t => {
+  if (t.source !== 'explorer') return false
+  const hasPair = !!t.pairUrl || !!t.pairAddress
+  const hasLiq = t.liquidity > 0
+  const hasVol = t.volume24h > 0
+  const hasPrice = t.price > 0
+  return !hasPair || !hasLiq || !hasVol || !hasPrice
+})
+
+// cap so we do not spam Dex
+const addrsForDex = needDex.map(t => t.address).slice(0, 240)
+const dexPairs = addrsForDex.length ? await fetchDexPairsBatch(addrsForDex, ac.signal) : []
+const addrsSet = new Set(addrsForDex.map(a => a.toLowerCase()))
+
+// fallback: batch endpoint misses some Ink pairs, so use latest per-token for a small capped set
+const needLatest = seed
+  .filter(t => t.source === 'explorer') // never touch pump
+  .filter(t => addrsSet.has(t.address.toLowerCase()))
+  .filter(t => t.liquidity <= 0) // still missing from explorer data
+  .map(t => t.address)
+  .slice(0, 40) // hard cap
+
+const latestPairs: DexPair[] = []
+for (const addr of needLatest) {
+  const pairs = await fetchDexLatestTokenPairs(addr, ac.signal)
+  for (const p of pairs) {
+    if (normChain(p?.chainId) === CHAIN_ID) latestPairs.push(p)
+  }
+}
+
+const allDexPairs = [...dexPairs, ...latestPairs]
+
+
+
+
+
+const bestPriceByToken = new Map<string, DexPair>()
+const bestLiqByToken = new Map<string, DexPair>()
+
+for (const p of allDexPairs) {
+  const pChain = normChain(p?.chainId)
+  if (pChain !== CHAIN_ID) continue
+
+  const baseAddr = (p?.baseToken?.address || '').toLowerCase()
+  const quoteAddr = (p?.quoteToken?.address || '').toLowerCase()
+  if (!baseAddr && !quoteAddr) continue
+
+  // A) price map: only when OUR token is base token
+  if (baseAddr && addrsSet.has(baseAddr)) {
+    const sym = p?.baseToken?.symbol || ''
+    const name = p?.baseToken?.name || ''
+    if (!isBadToken(sym, name)) {
+      const k = keyFor(pChain, baseAddr)
+      const prev = bestPriceByToken.get(k)
+      if (!prev || scorePair(p) > scorePair(prev)) bestPriceByToken.set(k, p)
+    }
+  }
+
+  // B) liquidity map: OUR token can be base OR quote
+  const matchedAddr = addrsSet.has(baseAddr) ? baseAddr : (addrsSet.has(quoteAddr) ? quoteAddr : '')
+  if (!matchedAddr) continue
+
+  const matchedSym = matchedAddr === baseAddr ? (p?.baseToken?.symbol || '') : (p?.quoteToken?.symbol || '')
+  const matchedName = matchedAddr === baseAddr ? (p?.baseToken?.name || '') : (p?.quoteToken?.name || '')
+  if (isBadToken(matchedSym, matchedName)) continue
+
+  const k2 = keyFor(pChain, matchedAddr)
+  const prev2 = bestLiqByToken.get(k2)
+
+  // for liquidity map, prefer pairs that actually have liquidity first
+  const hasLiq = toNum(p?.liquidity?.usd) > 0
+  const prevHasLiq = toNum(prev2?.liquidity?.usd) > 0
+
+  if (!prev2) {
+    bestLiqByToken.set(k2, p)
+  } else if (hasLiq && !prevHasLiq) {
+    bestLiqByToken.set(k2, p)
+  } else if (scorePair(p) > scorePair(prev2)) {
+    bestLiqByToken.set(k2, p)
+  }
 }
 
 
+const dexWithLiq = allDexPairs.filter(p => normChain(p?.chainId) === CHAIN_ID && toNum(p?.liquidity?.usd) > 0).length
+
+
+
+
 const mergedBase: TokenRow[] = seed.map(t => {
-  const p = bestByToken.get(t.address)
-  if (!p) return t
+  // pump stays untouched
+  if (t.source === 'pump') return t
+
+const pPrice = bestPriceByToken.get(keyFor(CHAIN_ID, t.address))
+const pLiq = bestLiqByToken.get(keyFor(CHAIN_ID, t.address))
+if (!pPrice && !pLiq) return t
+
+const dexPrice = toNum(pPrice?.priceUsd)
+const dexMcap = pPrice ? pickMcap(pPrice) : 0
+
+const dexLiq = toNum(pLiq?.liquidity?.usd)
+const dexVol = toNum(pLiq?.volume?.h24)
+
+
   return {
     ...t,
-    name: p?.baseToken?.name || t.name,
-    symbol: p?.baseToken?.symbol || t.symbol,
-    price: toNum(p?.priceUsd) || t.price,
-mcap: Math.max(pickMcap(p), t.mcap),
-    liquidity: toNum(p?.liquidity?.usd),
-    volume24h: toNum(p?.volume?.h24),
-    logo: p?.info?.imageUrl || t.logo,
-    pairUrl: p?.url || t.pairUrl,
-    pairAddress: p?.pairAddress || t.pairAddress,
+
+    // only fill if missing
+    price: t.price > 0 ? t.price : dexPrice,
+    liquidity: Math.max(t.liquidity, dexLiq),
+    volume24h: Math.max(t.volume24h, dexVol),
+    mcap: Math.max(t.mcap, dexMcap),
+
+    // only fill links if missing
+pairUrl: t.pairUrl ? t.pairUrl : ((pLiq?.url || pPrice?.url) || undefined),
+pairAddress: t.pairAddress ? t.pairAddress : ((pLiq?.pairAddress || pPrice?.pairAddress) || undefined),
+logo: t.logo ? t.logo : ((pPrice?.info?.imageUrl || pLiq?.info?.imageUrl) || undefined),
+
   }
 })
+
 
 
 
@@ -495,7 +701,7 @@ const explorerFallback: TokenRow[] = explorerItems
   .filter(Boolean) as TokenRow[]
 
 const finalTokens = [...merged, ...explorerFallback]
-  .filter(t => t.mcap > 0) // now includes Dex mcap, not only explorer mcap
+  .filter(t => t.source === 'pump' ? true : t.mcap > 0)
   .sort((a, b) => (b.mcap - a.mcap) || (b.liquidity - a.liquidity) || (b.volume24h - a.volume24h))
 
 
@@ -504,14 +710,27 @@ const finalTokens = [...merged, ...explorerFallback]
   {
     ok: true,
 updatedAt: Date.now() + 123,
-source: 'dexscreener',
+source: 'inkypump+explorer',
 chainId: CHAIN_ID,
 debug: {
+  pumpItems: pumpItems.length,
+  baseFromPump: baseFromPump.length,
   explorerItems: explorerItems.length,
+  explorerStatus: explorerRes.status,
+  explorerUrl: explorerRes.url,
+  explorerBodyHead: explorerRes.bodyHead,
   merged: merged.length,
   explorerFallback: explorerFallback.length,
-  finalTokens: finalTokens.length,
+finalTokens: finalTokens.length,
+dexPairs: allDexPairs.length,
+dexLatestPairs: latestPairs.length,
+dexWithLiq,
+dexTargets: addrsForDex.length,
+explorerNeedDex: explorerNeedDex.length,
+seed: seed.length,
+
 },
+
 tokens: finalTokens,
 
   },
@@ -528,7 +747,7 @@ tokens: finalTokens,
       {
         ok: false,
         updatedAt: Date.now(),
-        source: 'dexscreener',
+source: 'inkypump+explorer',
         chainId: CHAIN_ID,
         tokens: [],
         error: e?.message || 'tokens-overview error',
