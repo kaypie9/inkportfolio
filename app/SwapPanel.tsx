@@ -1,5 +1,6 @@
 'use client'
 
+import('@lifi/widget')
 import dynamic from 'next/dynamic'
 import { useMemo } from 'react'
 import type { WidgetConfig } from '@lifi/widget'
@@ -38,13 +39,13 @@ export default function SwapPanel() {
       integrator: 'ink-dashboard',
 
       variant: 'wide',
-      subvariant: 'split',
+      subvariant: "default",
       appearance: 'dark',
       hiddenUI: ['appearance'],
 
-          // 👇 DEFAULT FROM = ink ETH
-    fromChain: 57073,
-    fromToken: '0x0000000000000000000000000000000000000000',
+// 👇 DEFAULT TO = Ink ETH
+toChain: 57073,
+toToken: '0x0000000000000000000000000000000000000000',
 
       theme: {
         typography: {},
@@ -58,35 +59,25 @@ export default function SwapPanel() {
         },
         colorSchemes: {
           light: {
-            palette: {
-              primary: { main: '#30007A' },
-              secondary: { main: '#8700B8' },
-              background: { default: '#F9F5FF', paper: '#FFFFFF' },
-              text: { primary: '#000000', secondary: '#818084' },
-              grey: {
-                200: '#ECEBF0',
-                300: '#E5E1EB',
-                700: '#70767A',
-                800: '#4B4F52',
-              },
-              playground: { main: '#F3EBFF' },
-            },
+        palette: {
+          primary: {
+            main: "#5C67FF"
           },
+          secondary: {
+            main: "#F7C2FF"
+          }
+        }
+      },
           dark: {
-            palette: {
-              primary: { main: '#653BA3' },
-              secondary: { main: '#D35CFF' },
-              background: { default: '#24203D', paper: '#302B52' },
-              text: { primary: '#ffffff', secondary: '#9490a5' },
-              grey: {
-                200: '#ECEBF0',
-                300: '#DDDCE0',
-                700: '#70767A',
-                800: '#3c375c',
-              },
-              playground: { main: '#120F29' },
-            },
+        palette: {
+          primary: {
+            main: "#5C67FF"
           },
+          secondary: {
+            main: "#F7C2FF"
+          }
+        }
+      },
         },
         components: {
           MuiCard: {
