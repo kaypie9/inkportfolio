@@ -6501,19 +6501,6 @@ body[data-theme='dark'] .sidebar-footer-copy {
   margin: 0 auto;
 }
 
-
-@media (prefers-reduced-motion: no-preference) {
-  body.theme-animating,
-  body.theme-animating * {
-    transition:
-      background-color 260ms ease,
-      color 260ms ease,
-      border-color 260ms ease,
-      box-shadow 260ms ease,
-      fill 260ms ease,
-      stroke 260ms ease;
-  }
-}
 .ink-metrics-grid {
   margin-top: 16px;
   width: 100%;
@@ -12355,4 +12342,10 @@ svg{
   text-rendering: geometricPrecision;
   shape-rendering: geometricPrecision;
   vector-effect: non-scaling-stroke;
+}
+body[data-theme="light"].theme-switching *,
+body[data-theme="dark"].theme-switching *{
+  transition: none !important;
+  backdrop-filter: none !important;
+  filter: none !important;
 }

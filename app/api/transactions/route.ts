@@ -3,25 +3,8 @@ import { NextResponse } from 'next/server'
 const BLOCKSCOUT_BASE = 'https://explorer.inkonchain.com/api/v2'
 
 // known app name by contract address (ALL LOWERCASE)
-const KNOWN_APPS: Record<string, string> = {
-  // inkyPump
-  '0x1d74317d760f2c72a94386f50e8d10f2c902b899': 'InkyPump',
+import { getProtocolLabelByAddress } from '@/lib/protocolRegistry'
 
-  // inkyswap
-  '0xa8c1c38ff57428e5c3a34e0899be5cb385476507': 'InkySwap',
-  // across ink spoke pool
-  '0xef684c38f94f48775959ecf2012d7e864ffb9dd4': 'Across V2',
-
-    // Nado Ink
-  '0x05ec92d78ed421f3d3ada77ffde167106565974e': 'Nado',
-
-   // velodrom Ink
-  '0x3a63171dd9bebf4d07bc782fecc7eb0b890c2a45': 'Velodrome V2'
-
-  // fill with real ones later
-  // '0xuni_router_address_here': 'inkySwap',
-  // '0xsuperswap_router_here': 'SuperSwap',
-}
 
 type TxToken = {
   symbol: string
@@ -69,7 +52,8 @@ function labelOf(x: any): string {
   // if they passed an address string
   if (typeof x === 'string') {
     const a = x.toLowerCase()
-    if (KNOWN_APPS[a]) return KNOWN_APPS[a]
+    const known = getProtocolLabelByAddress(a)
+    if (known) return known
     return x
   }
 
@@ -77,9 +61,11 @@ function labelOf(x: any): string {
   const aAddr = addr(a)
 
   // known app override
-  if (aAddr && KNOWN_APPS[aAddr]) {
-    return KNOWN_APPS[aAddr]
+  if (aAddr) {
+    const known = getProtocolLabelByAddress(aAddr)
+    if (known) return known
   }
+
 
   return (
     a.name ||

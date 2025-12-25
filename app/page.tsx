@@ -26,7 +26,7 @@ import NoWalletOverlay from './components/home/NoWalletOverlay'
 import EcosystemGrid from './components/ecosystem/EcosystemGrid'
 import { inkEcosystem } from './data/ink-ecosystem'
 import ExploreDashboard from './components/explore/ExploreDashboard'
-
+import { getProtocolByAddress, getPositionUrl } from '@/lib/protocolRegistry'
 
 
 function getFavicon(url: string | null): string | null {
@@ -109,67 +109,6 @@ async function resolveInkDomain(name: string): Promise<string | null> {
   }
 }
 
-  // ADD MORE for TRANSACTIONS icons
-const PLATFORM_ICONS: Record<string, string> = {
-  // inkypump
-  '0x1d74317d760f2c72a94386f50e8d10f2c902b899': 'Inkyswap',
-  '0xa8c1c38ff57428e5c3a34e0899be5cb385476507': 'Inkyswap',
-
-  // across
-  '': '',
-
-  // Nado
-  '0x05ec92d78ed421f3d3ada77ffde167106565974e': 'Nado',
-  
-  // add more later here...
-
-  // Li.fi
-  '0x864b314d4c5a0399368609581d3e8933a63b9232': 'lifi',
-  '0x1bcd304fdad1d1d66529159b1bc8d13c9158d586': 'lifi',
-
-    // dailygm
-  '0x9f500d075118272b3564ac6ef2c70a9067fd2d3f': 'dailygm',
-
-}
-
-  // ADD MORE for YIELDING Naming /////// 
-  
-const PROTOCOL_LABELS: Record<string, string> = {
-  // inkyswap pools creator
-  '0x458c5d5b75ccba22651d2c5b61cb1ea1e0b0f95d': 'Inkyswap',
-
-  // Velodrome
-  '0x31832f2a97fd20664d76cc421207669b55ce4bc0': 'Velodrome',
-
-  // Nado margin account
-  '0x05ec92d78ed421f3d3ada77ffde167106565974e': 'Nado',
-};
-
-
-
-  // ADD MORE for YIELDING Icons /////// 
-
-const PROTOCOL_ICONS: Record<string, string> = {
-  Dinero: 'dinero',
-  Velodrome: 'velodrome',
-  Inkyswap: 'Inkyswap',
-  Nado: 'Nado',
-};
-
-  // ADD MORE for YIELDING Links /////
-
-export const PROTOCOL_URLS: Record<string, string> = {
-  Velodrome: 'https://velodrome.finance',
-  Inkyswap: 'https://inkyswap.com/swap',
-  TEST: 'https://inkonchain.com/staking/iether',
-  TEST2: 'https://inkonchain.com/staking/ultra',
-  TEST3: 'https://inkonchain.com/staking',
-  AMM: 'https://inkonchain.com/swap',
-  Dinero: 'https://ink.dinero.xyz/app',
-  Nado: 'https://app.nado.xyz/',
-};
-
-
 
 // svg footer - step style X icon
 const TwitterIconSvg = () => (
@@ -242,7 +181,7 @@ const pathToPage = (path: string): PageKey => {
   if (p === '/' || p === '/home') return 'Home'
 
   if (p.startsWith('/bridge') || p.startsWith('/swap')) return 'Bridge'
-  if (p.startsWith('/ink') || p.startsWith('/metrics')) return 'Ink'
+if (p.startsWith('/metrics') || p.startsWith('/ink')) return 'Metrics'
   if (p.startsWith('/ecosystem')) return 'Ecosystem'
   if (p.startsWith('/explore')) return 'Explore'
   if (p.startsWith('/language')) return 'Language'
@@ -253,14 +192,14 @@ const pathToPage = (path: string): PageKey => {
 const pageToPath = (k: PageKey): string => {
   if (k === 'Home') return '/'
   if (k === 'Bridge') return '/bridge'
-  if (k === 'Ink') return '/ink'
+if (k === 'Metrics') return '/metrics'
   if (k === 'Ecosystem') return '/ecosystem'
   if (k === 'Explore') return '/explore'
   if (k === 'Language') return '/language'
   return '/'
 }
 
-type PageKey = 'Home' | 'Bridge' | 'Ink' | 'Ecosystem' | 'Explore' | 'Language'
+type PageKey = 'Home' | 'Bridge' | 'Metrics' | 'Ecosystem' | 'Explore' | 'Language'
 
 type TokenHolding = {
   address: string;
@@ -799,7 +738,7 @@ const handleOverlayConnect = () => {
 }
 
 const handleOverlayGoMetrics = () => {
-  go('Ink')
+go('Metrics')
 }
 
 
@@ -1427,26 +1366,32 @@ const activePoint =
   // theme to body
 useEffect(() => {
   if (typeof document === 'undefined') return
-
   document.body.dataset.theme = theme
-
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem('ink-theme', theme)
-  }
 }, [theme])
 
 
 
-const toggleTheme = () => {
-  if (typeof document !== 'undefined') {
-    document.body.classList.add('theme-animating')
-    window.setTimeout(() => {
-      document.body.classList.remove('theme-animating')
-    }, 260)
-  }
 
-  setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))
+const toggleTheme = () => {
+  setTheme(prev => {
+    const next = prev === 'light' ? 'dark' : 'light'
+    if (typeof document !== 'undefined') {
+      document.body.dataset.theme = next
+
+      // theme switch
+      document.body.classList.add('theme-switching')
+      window.setTimeout(() => {
+        document.body.classList.remove('theme-switching')
+      }, 120)
+    }
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('ink-theme', next)
+    }
+    return next
+  })
 }
+
+
 
 
   const sidebarClass = isPinned
@@ -1459,7 +1404,7 @@ const toggleTheme = () => {
 const pageTitles: Record<PageKey, string> = {
   Home: 'Ink Dashboard',
   Bridge: 'Ink Dashboard',
-  Ink: 'Ink Dashboard',
+Metrics: 'Ink Dashboard',
   Ecosystem: 'Ink Dashboard',
   Explore: 'Ink Dashboard',
   Language: 'Ink Dashboard',
@@ -1468,7 +1413,7 @@ const pageTitles: Record<PageKey, string> = {
 const pageSubtitles: Record<PageKey, string> = {
   Home: 'simple overview of your ink portfolio',
   Bridge: 'swap & bridge to ink',
-  Ink: 'simple overview of ink network metrics',
+Metrics: 'simple overview of ink network metrics',
   Ecosystem: 'ink ecosystem',
   Explore: 'token discovery and wallet tracking',
   Language: 'language',
@@ -1583,9 +1528,12 @@ const yieldingByProtocol = useMemo(() => {
     const creatorAddr = ((v.creatorAddress as string) || '').toLowerCase();
     const rawLabel = v.poolName || v.name || v.symbol || '';
 
-    const protoLabel = creatorAddr
-      ? PROTOCOL_LABELS[creatorAddr] || shortAddress(creatorAddr)
-      : platform;
+const protoFromCreator = creatorAddr ? getProtocolByAddress(creatorAddr) : null
+
+const protoLabel = creatorAddr
+  ? (protoFromCreator?.label || shortAddress(creatorAddr))
+  : platform
+
 
     const upperSym = (v.symbol || '').toUpperCase();
     const upperPool = (rawLabel || '').toUpperCase();
@@ -1618,11 +1566,13 @@ const yieldingByProtocol = useMemo(() => {
       positionType = 'Other';
     }
 
-    let protocolUrl = PROTOCOL_URLS[protoLabel] || null;
-    if (!protocolUrl) {
-      protocolUrl = PROTOCOL_URLS[positionType] || null;
-    }
-    const faviconUrl = protocolUrl ? getFavicon(protocolUrl) : null;
+let protocolUrl = (protoFromCreator?.url || null)
+if (!protocolUrl) {
+  protocolUrl = getPositionUrl(positionType)
+}
+
+const faviconUrl = protocolUrl ? getFavicon(protocolUrl) : null
+
 
     const addrKey = (
       (v.tokenAddress as string) ||
@@ -1631,13 +1581,11 @@ const yieldingByProtocol = useMemo(() => {
       ''
     ).toLowerCase();
 
-    const platformKey =
-      addrKey && PLATFORM_ICONS[addrKey]
-        ? PLATFORM_ICONS[addrKey]
-        : '';
+const protoFromAddr = addrKey ? getProtocolByAddress(addrKey) : null
 
-    const manualIconKey =
-      PROTOCOL_ICONS[protoLabel] || platformKey || '';
+const manualIconKey =
+  protoFromCreator?.icon || protoFromAddr?.icon || ''
+
 
     const manualIconSrc = manualIconKey
       ? `/platforms/${manualIconKey}.svg`
@@ -2021,8 +1969,8 @@ onClick={() => go('Bridge')}
 
 {/* Ink Metrics */}
 <button
-  className={`sidebar-item ${activePage === 'Ink' ? 'sidebar-item-active' : ''}`}
-onClick={() => go('Ink')}
+className={`sidebar-item ${activePage === 'Metrics' ? 'sidebar-item-active' : ''}`}
+onClick={() => go('Metrics')}
 >
   <span className='sidebar-icon-slot'>
 <span className="sidebar-icon">
@@ -2918,9 +2866,12 @@ const groups: {
 
       const creatorAddr = ((v.creatorAddress as string) || '').toLowerCase();
 
-      const protocolLabel = creatorAddr
-        ? PROTOCOL_LABELS[creatorAddr] || shortAddress(creatorAddr)
-        : platform;
+const protoFromCreator = creatorAddr ? getProtocolByAddress(creatorAddr) : null
+
+const protocolLabel = creatorAddr
+  ? (protoFromCreator?.label || shortAddress(creatorAddr))
+  : platform
+
 
       const upperSym = (v.symbol || '').toUpperCase();
       const upperPool = (label || '').toUpperCase();
@@ -2960,20 +2911,21 @@ const groups: {
 
       const addrKey = rawAddr.toLowerCase();
 
-      const platformKey =
-        addrKey && PLATFORM_ICONS[addrKey]
-          ? PLATFORM_ICONS[addrKey]
-          : '';
+const protoFromAddr = addrKey ? getProtocolByAddress(addrKey) : null
 
-      let protocolUrl = PROTOCOL_URLS[protocolLabel] || null;
-      if (!protocolUrl) {
-        protocolUrl = PROTOCOL_URLS[positionType] || null;
-      }
+
+let protocolUrl = (protoFromCreator?.url || null)
+if (!protocolUrl) {
+  protocolUrl = getPositionUrl(positionType)
+}
+
+
 
       const faviconUrl = protocolUrl ? getFavicon(protocolUrl) : null;
 
       const manualIconKey =
-        PROTOCOL_ICONS[protocolLabel] || platformKey || '';
+  protoFromCreator?.icon || protoFromAddr?.icon || ''
+
 
       const manualIconSrc = manualIconKey
         ? `/platforms/${manualIconKey}.svg`
@@ -3866,17 +3818,19 @@ const rightIcon =
 // Determine which icon to use
 let iconKey = "";
 const appAddr = (tx.primaryAppAddress || tx.to || "").toLowerCase();
-const platformIcon = PLATFORM_ICONS[appAddr];
+const proto = getProtocolByAddress(appAddr)
+const platformIcon = proto?.icon || ''
 
 if (platformIcon) {
-  iconKey = platformIcon;
-} else if (platformMain === "Send") {
-  iconKey = "send";
-} else if (platformMain === "Receive") {
-  iconKey = "receive";
+  iconKey = platformIcon
+} else if (platformMain === 'Send') {
+  iconKey = 'send'
+} else if (platformMain === 'Receive') {
+  iconKey = 'receive'
 } else {
-  iconKey = "";
+  iconKey = ''
 }
+
 
     return (
       <div className="tx-platform-block">
@@ -4213,7 +4167,7 @@ const valueUsd =
 <section
   className='positions-section'
   style={
-    activePage === 'Ink'
+activePage === 'Metrics'
       ? { position: 'relative', opacity: 1, pointerEvents: 'auto' }
       : {
           position: 'fixed',
@@ -4225,7 +4179,7 @@ const valueUsd =
           pointerEvents: 'none',
         }
   }
-  aria-hidden={activePage !== 'Ink'}
+  aria-hidden={activePage !== 'Metrics'}
 >
   <div className='ink-divider'></div>
   <div className='positions-header-row'>
