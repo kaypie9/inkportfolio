@@ -1,6 +1,5 @@
 'use client'
 
-import('@lifi/widget')
 import dynamic from 'next/dynamic'
 import { useMemo } from 'react'
 import type { WidgetConfig } from '@lifi/widget'

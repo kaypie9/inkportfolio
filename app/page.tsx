@@ -236,7 +236,7 @@ const RefreshIcon = () => (
   </svg>
 );
 
-type PageKey = "Home" | "Swap" | "Ink" | "Ecosystem" | "Explore" | "Language";
+type PageKey = "Home" | "Bridge" | "Ink" | "Ecosystem" | "Explore" | "Language";
 
 type TokenHolding = {
   address: string;
@@ -1372,7 +1372,7 @@ const toggleTheme = () => {
   
 const pageTitles: Record<PageKey, string> = {
   Home: 'Ink Dashboard',
-  Swap: 'Ink Dashboard',
+  Bridge: 'Ink Dashboard',
   Ink: 'Ink Dashboard',
   Ecosystem: 'Ink Dashboard',
   Explore: 'Ink Dashboard',
@@ -1381,7 +1381,7 @@ const pageTitles: Record<PageKey, string> = {
 
 const pageSubtitles: Record<PageKey, string> = {
   Home: 'simple overview of your ink portfolio',
-  Swap: 'swap & bridge to ink',
+  Bridge: 'swap & bridge to ink',
   Ink: 'simple overview of ink network metrics',
   Ecosystem: 'ink ecosystem',
   Explore: 'token discovery and wallet tracking',
@@ -1921,16 +1921,16 @@ onKeyDown={async (e) => {
   {/* Swap */}
   <button
     className={`sidebar-item ${
-      activePage === "Swap" ? "sidebar-item-active" : ""
+      activePage === "Bridge" ? "sidebar-item-active" : ""
     }`}
-    onClick={() => setActivePage("Swap")}
+    onClick={() => setActivePage("Bridge")}
   >
     <span className="sidebar-icon-slot">
       <span className="sidebar-icon">
         <ArrowsRightLeftIcon />
       </span>
     </span>
-    <span className="sidebar-label">Swap</span>
+    <span className="sidebar-label">Bridge</span>
   </button>
 
 {/* Ink Metrics */}
@@ -2262,7 +2262,7 @@ onKeyDown={async (e) => {
   <button
     type="button"
     className="wallet-action-btn"
-    onClick={() => setActivePage("Swap")}
+    onClick={() => setActivePage("Bridge")}
   >
     Swap & Bridge 
   </button>
@@ -4092,11 +4092,11 @@ const valueUsd =
 
 
 
-{activePage === 'Swap' && (
+{activePage === 'Bridge' && (
 <section
   className='positions-section'
   style={
-    activePage === 'Swap'
+    activePage === 'Bridge'
       ? { position: 'relative', opacity: 1, pointerEvents: 'auto' }
       : {
           position: 'fixed',
@@ -4108,12 +4108,12 @@ const valueUsd =
           pointerEvents: 'none',
         }
   }
-  aria-hidden={activePage !== 'Swap'}
+  aria-hidden={activePage !== 'Bridge'}
 >
   <div className='ink-divider'></div>
   <div className='positions-header-row'>
     <div className='portfolio-title-stack'>
-      <div className='section-title'>Swap</div>
+      <div className='section-title'>Bridge</div>
       <div className='section-subtitle'>Powered by li.fi</div>
     </div>
   </div>
