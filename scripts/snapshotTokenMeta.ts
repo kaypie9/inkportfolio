@@ -58,7 +58,7 @@ async function main() {
 
 
   const j: any = await r.json()
-const items: any[] = Array.isArray(j?.tokens) ? j.tokens.slice(0, 3) : []
+const items: any[] = Array.isArray(j?.tokens) ? j.tokens.slice(0, 100) : []
 
   const map: Record<string, TokenMeta> = {}
 

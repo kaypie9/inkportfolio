@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { getDexScreenerRaw } from "@/lib/aggregators/dexscreener"
 
 const BLOCKSCOUT_BASE = "https://explorer.inkonchain.com/api/v2"
 
@@ -29,17 +30,16 @@ export async function GET(req: Request) {
     }
 
     // 2) fallback to dexscreener by address (not generic search)
-    const res = await fetch(
-      `https://api.dexscreener.com/latest/dex/tokens/${address}`,
-      { next: { revalidate: 600 } },
-    )
+    let data: any
+try {
+  data = await getDexScreenerRaw(
+    `https://api.dexscreener.com/latest/dex/tokens/${address}`,
+    { ttlMs: 15_000 }
+  )
+} catch {
+  return NextResponse.json({ iconUrl: null }, { status: 200 })
+}
 
-    if (!res.ok) {
-      console.error("token-icon dexscreener failed", res.status)
-      return NextResponse.json({ iconUrl: null }, { status: 200 })
-    }
-
-    const data = await res.json()
     const pair = Array.isArray((data as any).pairs)
       ? (data as any).pairs[0]
       : undefined

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 
-type Row = { name: string; tvl: number; ytdPct?: number | null; logo?: string | null }
+type Row = { name: string; tvl: number; m1Pct?: number | null; logo?: string | null }
 
 let memL2Rows: { at: number; rows: Row[] } | null = null
 const L2_TTL_MS = 5 * 60 * 1000
@@ -84,7 +84,7 @@ useEffect(() => {
       <div className='ink-card-clip'>
         <div className='ink-card-header' style={{ marginBottom: 6 }}>
   <span className='ink-card-title'>L2 TVL Comparison</span>
-<span className='ink-l2-subtitle'>YTD growth</span>
+<span className='ink-l2-subtitle'>1m performance</span>
 
 </div>
 
@@ -133,14 +133,12 @@ useEffect(() => {
 
 <div className='ink-l2-right' style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
   <span>{fmtUsd(r.tvl)}</span>
-  {r.ytdPct !== null && r.ytdPct !== undefined && (
-<span className={'ink-l2-ytd ' + (r.name === 'Ink' ? 'is-ink' : 'is-other')}>
-  {r.ytdPct == null ? '—' : fmtPctCap(r.ytdPct)}
-</span>
+{r.m1Pct !== null && r.m1Pct !== undefined && (
+  <span className={'ink-l2-ytd ' + (r.name === 'Ink' ? 'is-ink' : 'is-other')}>
+    {r.m1Pct == null ? '-' : fmtPctCap(r.m1Pct)}
+  </span>
+)}
 
-
-
-  )}
 </div>
                 </div>
               )

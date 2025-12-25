@@ -543,16 +543,6 @@ useEffect(() => {
   setMounted(true) // mark as mounted AFTER we read storage
 }, [])
 
-
-useEffect(() => {
-  if (typeof window === 'undefined') return
-
-  const stored = window.localStorage.getItem('ink-theme')
-  if (stored === 'light' || stored === 'dark') {
-    setTheme(stored)
-  }
-}, [])
-
   // real wallet and search input
 const [walletAddress, setWalletAddress] = useState<string>('')   // currently viewed wallet
 const [searchInput, setSearchInput] = useState<string>('')
@@ -827,8 +817,6 @@ const rangeParam =
     }
   };
 
-    // NFTS function
-
   // NFTS function
 
   const loadNfts = async (addr: string) => {
@@ -991,17 +979,42 @@ useEffect(() => {
 
 
 
-// refresh portfolio once when wallet auto-connects (app reopened)
+
+
+
 useEffect(() => {
-  if (!walletAddress) return;
+  let dead = false
 
-  // if portfolio is still empty → this is an auto-connection load
-  if (!portfolio) {
-    refreshAll(walletAddress);
+  ;(async () => {
+    // Prefetch Tokens Overview (no holders)
+    try {
+      const tokCached = (globalThis as any).__ink_tokens_overview_cache__
+      if (!tokCached) {
+        const r = await fetch('/api/explore/tokens-overview')
+        const j = await r.json()
+        if (dead) return
+        const list = Array.isArray(j?.tokens) ? j.tokens : []
+        ;(globalThis as any).__ink_tokens_overview_cache__ = list
+      }
+    } catch {}
+
+    // Prefetch Top MCAP cards (stored where TopMcapCards already reads from)
+    try {
+      const key = 'ink_explore_top_mcap_cache_v1'
+      if (typeof window !== 'undefined' && !sessionStorage.getItem(key)) {
+        const r = await fetch('/api/explore/top-tokens-mcap')
+        const j = await r.json()
+        if (dead) return
+        const rows = Array.isArray(j?.rows) ? j.rows : []
+        sessionStorage.setItem(key, JSON.stringify(rows))
+      }
+    } catch {}
+  })()
+
+  return () => {
+    dead = true
   }
-}, [walletAddress]);
-
-
+}, [])
 
 
   // when range changes, reload history onlyy
@@ -3743,10 +3756,10 @@ const rightIcon =
 
   <div className='tx-date-wrap'>
     <span className='tx-date-main'>
-      {formatDateTimeLabel(tx.timestamp)}
+{formatDateTimeLabel(tx.timestamp < 2_000_000_000 ? tx.timestamp * 1000 : tx.timestamp)}
     </span>
     <span className='tx-date-sub'>
-      {formatLastUpdated(tx.timestamp)}
+{formatLastUpdated(tx.timestamp < 2_000_000_000 ? tx.timestamp * 1000 : tx.timestamp)}
     </span>
   </div>
 

@@ -35,13 +35,13 @@ async function fetchChainHistory(chainName: string) {
   return Array.isArray(j) ? j : []
 }
 
-function computeYtdPct(series: any[]) {
+function compute1mPct(series: any[]) {
   if (!Array.isArray(series) || series.length === 0) return null
 
-  const year = new Date().getUTCFullYear()
-  const jan1 = Math.floor(Date.UTC(year, 0, 1) / 1000)
+  const now = Math.floor(Date.now() / 1000)
+  const cutoff = now - 30 * 24 * 60 * 60
 
-  let start: number | null = null
+  let prev: number | null = null
   let latest: number | null = null
 
   for (let i = 0; i < series.length; i++) {
@@ -49,17 +49,18 @@ function computeYtdPct(series: any[]) {
     const v = toNum(series[i]?.tvl)
     if (d === null || v === null) continue
 
-    if (start === null && d >= jan1) start = v
+    if (d <= cutoff) prev = v
     latest = v
   }
 
-  if (start === null || latest === null) return null
+  if (prev === null || latest === null) return null
 
-  // presentable floor so we dont show ridiculous % from dust
-  if (start < 1_000_000) return pct(latest, start) // keep it true, but you can switch this to `return null` if you want
+  // avoid ridiculous % from dust
+  if (prev < 1_000_000) return null
 
-  return pct(latest, start)
+  return pct(latest, prev)
 }
+
 
 
 export async function GET() {
@@ -80,19 +81,19 @@ export async function GET() {
       return {
         name,
         tvl: toNum(r?.tvl) ?? 0,
-        ytdPct: null as number | null,
+m1Pct: null as number | null,
         logo: `https://icons.llamao.fi/icons/chains/rsz_${encodeURIComponent(
           icon === 'zksync' ? 'zksync era' : icon
         )}?w=48&h=48`,
       }
     })
 
-    // compute YTD % using historical series (limited fanout, still fast with 7 chains)
+// compute 1m % using historical series (limited fanout, still fast with 7 chains)
     const withYtd = await Promise.all(
       baseRows.map(async (row) => {
         try {
           const series = await fetchChainHistory(row.name)
-          return { ...row, ytdPct: computeYtdPct(series) }
+return { ...row, m1Pct: compute1mPct(series) }
         } catch {
           return row
         }

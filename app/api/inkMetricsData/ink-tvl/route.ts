@@ -9,20 +9,27 @@ export async function GET() {
     const { tvl, tvlChange24hPct } = await fetchChainTvlAnd24hChange({
       chainName: 'Ink',
       chainSlug: 'ink',
-      revalidateSec: 300,
+      revalidateSec: 0,
     })
 
-    return NextResponse.json({
-      ok: true,
-      chain: 'Ink',
-      tvl,
-      tvlChange24hPct,
-      source: {
-        chains: 'https://api.llama.fi/v2/chains',
-        history: 'https://api.llama.fi/v2/historicalChainTvl/ink',
-      },
-      ts: Date.now(),
-    })
+    return NextResponse.json(
+  {
+    ok: true,
+    chain: 'Ink',
+    tvl,
+    tvlChange24hPct,
+    source: {
+      chains: 'https://api.llama.fi/v2/chains',
+      history: 'https://api.llama.fi/v2/historicalChainTvl/ink',
+    },
+    ts: Date.now(),
+  },
+  {
+    headers: {
+      'cache-control': 'no-store, no-cache, must-revalidate, max-age=0',
+    },
+  }
+)
   } catch (e: any) {
     return NextResponse.json(
       {

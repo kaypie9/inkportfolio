@@ -2,6 +2,7 @@
 
 import { NextResponse } from 'next/server';
 import { fetchNadoUsdEquity } from '@/lib/nado';
+import { getDexScreenerRaw } from '@/lib/aggregators/dexscreener';
 
 
 const RPC_URL =
@@ -38,14 +39,16 @@ async function getTokenIconMeta(address: string): Promise<TokenIconMeta> {
     }
 
     // 2) fallback to dexscreener
-    const res = await fetch(
-      `https://api.dexscreener.com/latest/dex/tokens/${address}`,
-      { next: { revalidate: 300 } },
-    );
+let data: any
+try {
+  data = await getDexScreenerRaw(
+    `https://api.dexscreener.com/latest/dex/tokens/${address}`,
+    { ttlMs: 15_000 }
+  )
+} catch {
+  return {}
+}
 
-    if (!res.ok) return {};
-
-    const data = await res.json();
     const pair = Array.isArray((data as any).pairs)
       ? (data as any).pairs[0]
       : undefined;
@@ -474,17 +477,16 @@ async function getTokenMarketData(address: string): Promise<TokenMarketData> {
       return { priceUsd: 0 };
     }
 
-const res = await fetch(
-  `https://api.dexscreener.com/latest/dex/tokens/${address}`,
-  { next: { revalidate: 300 } }
-)
+let data: any
+try {
+  data = await getDexScreenerRaw(
+    `https://api.dexscreener.com/latest/dex/tokens/${address}`,
+    { ttlMs: 15_000 }
+  )
+} catch {
+  return { priceUsd: 0 }
+}
 
-    if (!res.ok) {
-      console.error('dexscreener status', res.status);
-      return { priceUsd: 0 };
-    }
-
-    const data = await res.json();
     const pair = Array.isArray(data.pairs) ? data.pairs[0] : undefined;
     if (!pair) {
       return { priceUsd: 0 };

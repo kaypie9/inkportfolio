@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { TOKEN_META } from '@/app/data/tokenMeta'
+import { rateLimit } from '@/lib/rateLimit'
+import { getInkyPumpRaw } from '@/lib/aggregators/inkypump'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -56,14 +58,30 @@ async function getEthUsd() {
   return cachedEthUsd?.v ?? null
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const ip =
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    req.headers.get('x-real-ip') ||
+    'local'
+
+  if (!rateLimit(`${ip}:explore_top_mcap`, 30, 60_000)) {
+    return NextResponse.json({ ok: false, rows: [], error: 'rate limited' }, { status: 429 })
+  }
+
   try {
     const ethUsd = await getEthUsd()
 
-    const j = await fetchJsonWithTimeout(
-  'https://inkypump.com/api/tokens?page=1&sortBy=mcap-high',
-  1800
-)
+
+    let j: any
+try {
+  j = await getInkyPumpRaw(
+    'https://inkypump.com/api/tokens?page=1&sortBy=mcap-high',
+    { ttlMs: 15_000 }
+  )
+} catch {
+  j = null
+}
+
 
 if (!j) {
   // if inkypump is slow/down, serve last good data for 60s

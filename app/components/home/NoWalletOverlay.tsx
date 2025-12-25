@@ -23,10 +23,16 @@ export default function NoWalletOverlay(props: {
 
   if (!show) return null
 
-  return (
-    <div className='ink-emptywrap' role='dialog' aria-modal='true'>
-      <div className='ink-emptyglass' />
-      <div className='ink-emptycard'>
+return (
+  <div
+    className='ink-emptywrap'
+    role='dialog'
+    aria-modal='true'
+    onClick={() => onClose?.()}
+  >
+    <div className='ink-emptyglass' />
+    <div className='ink-emptycard' onClick={e => e.stopPropagation()}>
+
         <button
           type='button'
           className='ink-emptyclose'

@@ -1,4 +1,8 @@
 import { NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/rateLimit'
+import { getDexScreenerRaw } from '@/lib/aggregators/dexscreener'
+import { getInkyPumpRaw } from '@/lib/aggregators/inkypump'
+import { getInkExplorerRaw } from '@/lib/aggregators/inkExplorer'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -134,21 +138,16 @@ async function fetchJson(url: string, signal: AbortSignal) {
 
 async function fetchHolders(address: string, signal: AbortSignal) {
   try {
-    const r = await fetch(`https://explorer.inkonchain.com/api/v2/tokens/${address}`, {
-      signal,
-      headers: { accept: 'application/json' },
-      cache: 'no-store',
-    })
-
-    const txt = await r.text()
-    if (!r.ok) return null
-
-    let j: any
+       let j: any
     try {
-      j = JSON.parse(txt)
+      j = await getInkExplorerRaw(
+        `https://explorer.inkonchain.com/api/v2/tokens/${address}`,
+        { ttlMs: 30_000, fetchInit: { signal } }
+      )
     } catch {
       return null
     }
+
 
     const n = Number(j?.holders_count)
     if (!Number.isFinite(n) || n <= 0) return null
@@ -209,23 +208,15 @@ const qs = new URLSearchParams({
 
 const url = `${INKYPUMP_TOKENS_API}?${qs}`
 
-const r = await fetch(url, {
-  signal,
-  headers: { accept: 'application/json', 'user-agent': 'ink-dashboard' },
-  cache: 'no-store',
-})
-
-const txt = await r.text()
-if (!r.ok) return []
-
 let j: any
 try {
-  j = JSON.parse(txt)
+  j = await getInkyPumpRaw(url, { ttlMs: 15_000 })
 } catch {
   return []
 }
 
 return Array.isArray(j?.tokens) ? j.tokens : []
+
   } catch {
     return []
   }
@@ -247,16 +238,16 @@ async function fetchExplorerTokens(
 
     const url1 = `${EXPLORER_TOKENS_API}?${qs1}`
 
-    const r1 = await fetch(url1, {
-      signal,
-      headers: { accept: 'application/json', 'user-agent': 'ink-dashboard' },
-      cache: 'no-store',
-    })
+        let j1: any = null
+    try {
+      j1 = await getInkExplorerRaw(url1, { ttlMs: 15_000, fetchInit: { signal } })
+    } catch {
+      j1 = null
+    }
 
-    const t1 = await r1.text()
-    if (r1.ok) {
+    if (j1) {
       try {
-        const j1: any = JSON.parse(t1)
+
         const items1 = Array.isArray(j1?.items) ? j1.items : []
         if (items1.length) return { items: items1.slice(0, limit), status: 200, url: url1, bodyHead: '' }
       } catch {
@@ -272,21 +263,15 @@ async function fetchExplorerTokens(
 
     const url2 = `${EXPLORER_TOKENS_API}?${qs2}`
 
-    const r2 = await fetch(url2, {
-      signal,
-      headers: { accept: 'application/json', 'user-agent': 'ink-dashboard' },
-      cache: 'no-store',
-    })
-
-    const t2 = await r2.text()
-    if (!r2.ok) return { items: [], status: r2.status, url: url2, bodyHead: t2.slice(0, 180) }
-
-    let j2: any
+        let j2: any = null
     try {
-      j2 = JSON.parse(t2)
+      j2 = await getInkExplorerRaw(url2, { ttlMs: 15_000, fetchInit: { signal } })
     } catch {
-      return { items: [], status: 0, url: url2, bodyHead: t2.slice(0, 180) }
+      return { items: [], status: 0, url: url2, bodyHead: 'explorer parse failed' }
     }
+
+    if (!j2) return { items: [], status: 0, url: url2, bodyHead: 'explorer empty' }
+
 
     const items2 = Array.isArray(j2?.items) ? j2.items : []
     return { items: items2.slice(0, limit), status: 200, url: url2, bodyHead: '' }
@@ -317,21 +302,13 @@ async function fetchDexPairsBatch(addresses: string[], signal: AbortSignal): Pro
   for (const g of groups) {
     const url = `${DEX_TOKENS_V1}${CHAIN_ID}/${g.join(',')}`
 
-    const r = await fetch(url, {
-      signal,
-      headers: { accept: 'application/json', 'user-agent': 'ink-dashboard' },
-      cache: 'no-store',
-    })
-
-    const txt = await r.text()
-    if (!r.ok) continue
-
-    let j: any
+        let j: any
     try {
-      j = JSON.parse(txt)
+      j = await getDexScreenerRaw(url, { ttlMs: 15_000 })
     } catch {
       continue
     }
+
 
     if (Array.isArray(j)) out.push(...j)
   }
@@ -342,21 +319,13 @@ return out
 async function fetchDexLatestTokenPairs(address: string, signal: AbortSignal): Promise<DexPair[]> {
   try {
     const url = `${DEX_LATEST_TOKENS}${address}`
-    const r = await fetch(url, {
-      signal,
-      headers: { accept: 'application/json', 'user-agent': 'ink-dashboard' },
-      cache: 'no-store',
-    })
-
-    const txt = await r.text()
-    if (!r.ok) return []
-
-    let j: any
+        let j: any
     try {
-      j = JSON.parse(txt)
+      j = await getDexScreenerRaw(url, { ttlMs: 15_000 })
     } catch {
       return []
     }
+
 
     return Array.isArray(j?.pairs) ? j.pairs : []
   } catch {
@@ -366,9 +335,19 @@ async function fetchDexLatestTokenPairs(address: string, signal: AbortSignal): P
 
 
 
-export async function GET() {
+export async function GET(req: Request) {
+  const ip =
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    req.headers.get('x-real-ip') ||
+    'local'
+
+  if (!rateLimit(`${ip}:explore_tokens_overview`, 30, 60_000)) {
+    return NextResponse.json({ ok: false, error: 'rate limited' }, { status: 429 })
+  }
+
   const ac = new AbortController()
-const timer = setTimeout(() => ac.abort(), 30000)
+  const timer = setTimeout(() => ac.abort(), 30000)
+
 
   try {
 const baseQueries = [

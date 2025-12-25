@@ -2,8 +2,10 @@
 
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { rateLimit } from '@/lib/rateLimit'
 
 export async function GET(req: Request) {
+  
   const url = new URL(req.url);
   const wallet = url.searchParams.get('wallet');
   const hoursParam = url.searchParams.get('hours');
