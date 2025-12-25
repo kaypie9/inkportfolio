@@ -236,7 +236,31 @@ const RefreshIcon = () => (
   </svg>
 );
 
-type PageKey = "Home" | "Bridge" | "Ink" | "Ecosystem" | "Explore" | "Language";
+const pathToPage = (path: string): PageKey => {
+  const p = (path || '').toLowerCase()
+
+  if (p === '/' || p === '/home') return 'Home'
+
+  if (p.startsWith('/bridge') || p.startsWith('/swap')) return 'Bridge'
+  if (p.startsWith('/ink') || p.startsWith('/metrics')) return 'Ink'
+  if (p.startsWith('/ecosystem')) return 'Ecosystem'
+  if (p.startsWith('/explore')) return 'Explore'
+  if (p.startsWith('/language')) return 'Language'
+
+  return 'Home'
+}
+
+const pageToPath = (k: PageKey): string => {
+  if (k === 'Home') return '/'
+  if (k === 'Bridge') return '/bridge'
+  if (k === 'Ink') return '/ink'
+  if (k === 'Ecosystem') return '/ecosystem'
+  if (k === 'Explore') return '/explore'
+  if (k === 'Language') return '/language'
+  return '/'
+}
+
+type PageKey = 'Home' | 'Bridge' | 'Ink' | 'Ecosystem' | 'Explore' | 'Language'
 
 type TokenHolding = {
   address: string;
@@ -517,7 +541,10 @@ function isValidContactInfo(input: string): boolean {
 
 
 export default function HomePage() {
-  const [activePage, setActivePage] = useState<PageKey>("Home");
+const [activePage, setActivePage] = useState<PageKey>(() => {
+  if (typeof window === 'undefined') return 'Home'
+  return pathToPage(window.location.pathname || '/')
+})
   const [isPinned, setIsPinned] = useState(false);
 const [theme, setTheme] = useState<'light' | 'dark'>(() => {
   if (typeof window === 'undefined') return 'light'
@@ -635,6 +662,52 @@ const [overlayDismissed, setOverlayDismissed] = useState(false)
 
 
 useEffect(() => {
+  if (typeof window === 'undefined') return
+
+  const sync = () => {
+    setActivePage(pathToPage(window.location.pathname || '/'))
+  }
+
+  // back/forward
+  window.addEventListener('popstate', sync)
+
+  // also react to pushState/replaceState from anywhere
+const origPush: History['pushState'] = history.pushState.bind(history)
+const origReplace: History['replaceState'] = history.replaceState.bind(history)
+
+
+history.pushState = (
+  data: any,
+  unused: string,
+  url?: string | URL | null
+) => {
+  origPush(data, unused, url)
+  window.dispatchEvent(new Event('popstate'))
+}
+
+history.replaceState = (
+  data: any,
+  unused: string,
+  url?: string | URL | null
+) => {
+  origReplace(data, unused, url)
+  window.dispatchEvent(new Event('popstate'))
+}
+
+
+
+  // initial sync
+  sync()
+
+  return () => {
+    window.removeEventListener('popstate', sync)
+    history.pushState = origPush
+    history.replaceState = origReplace
+  }
+}, [])
+
+
+useEffect(() => {
   if (!address) return
 
   const addr = address.toLowerCase()
@@ -726,7 +799,7 @@ const handleOverlayConnect = () => {
 }
 
 const handleOverlayGoMetrics = () => {
-  setActivePage('Ink')
+  go('Ink')
 }
 
 
@@ -1210,6 +1283,19 @@ const handleDisconnect = () => {
   setPerCollectionSpentUsd({})
   setTotalNftSpentUsd(0)
   setOverlayDismissed(false)
+}
+
+const go = (k: PageKey) => {
+  setActivePage(k)
+
+  if (typeof window === 'undefined') return
+
+  const nextPath = pageToPath(k)
+  const curPath = window.location.pathname
+
+  if (curPath !== nextPath) {
+    window.history.pushState({}, '', nextPath)
+  }
 }
 
 
@@ -1890,7 +1976,7 @@ onKeyDown={async (e) => {
       activePage === "Home" ? "sidebar-item-active" : ""
     }`}
     onClick={() => {
-      setActivePage("Home");
+go('Home')
 
       if (
         connectedWallet &&
@@ -1923,7 +2009,7 @@ onKeyDown={async (e) => {
     className={`sidebar-item ${
       activePage === "Bridge" ? "sidebar-item-active" : ""
     }`}
-    onClick={() => setActivePage("Bridge")}
+onClick={() => go('Bridge')}
   >
     <span className="sidebar-icon-slot">
       <span className="sidebar-icon">
@@ -1936,7 +2022,7 @@ onKeyDown={async (e) => {
 {/* Ink Metrics */}
 <button
   className={`sidebar-item ${activePage === 'Ink' ? 'sidebar-item-active' : ''}`}
-  onClick={() => setActivePage('Ink')}
+onClick={() => go('Ink')}
 >
   <span className='sidebar-icon-slot'>
 <span className="sidebar-icon">
@@ -1951,7 +2037,7 @@ onKeyDown={async (e) => {
   className={`sidebar-item ${
     activePage === "Ecosystem" ? "sidebar-item-active" : ""
   }`}
-  onClick={() => setActivePage("Ecosystem")}
+onClick={() => go('Ecosystem')}
 >
   <span className="sidebar-icon-slot">
     <span className="sidebar-icon">
@@ -1967,7 +2053,7 @@ onKeyDown={async (e) => {
     className={`sidebar-item ${
       activePage === "Explore" ? "sidebar-item-active" : ""
     }`}
-    onClick={() => setActivePage("Explore")}
+onClick={() => go('Explore')}
   >
     <span className="sidebar-icon-slot">
       <span className="sidebar-icon">
@@ -1982,7 +2068,7 @@ onKeyDown={async (e) => {
     className={`sidebar-item ${
       activePage === "Language" ? "sidebar-item-active" : ""
     }`}
-    onClick={() => setActivePage("Language")}
+onClick={() => go('Language')}
   >
     <span className="sidebar-icon-slot">
       <span className="sidebar-icon">
@@ -2262,7 +2348,7 @@ onKeyDown={async (e) => {
   <button
     type="button"
     className="wallet-action-btn"
-    onClick={() => setActivePage("Bridge")}
+onClick={() => go('Bridge')}
   >
     Swap & Bridge 
   </button>
