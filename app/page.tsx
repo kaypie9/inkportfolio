@@ -778,16 +778,9 @@ if (typeof (data as any).nativeUsdPrice === 'number') {
 setLastUpdatedAt(Date.now());
 
 
-    try {
-      const resPos = await fetch(`/api/positions?wallet=${addr}`);
-      if (!resPos.ok) throw new Error(`status ${resPos.status}`);
-      const posJson: any = await resPos.json();
-      setPositions(Array.isArray(posJson.positions) ? posJson.positions : []);
-    } catch (e) {
-      console.error('positions fetch failed', e);
-      setPositionsError('could not load positions');
-      setPositions([]);
-    }
+          setPositions(Array.isArray((data as any).positions) ? (data as any).positions : [])
+      setPositionsError(null)
+
 
 
     // try to fetch icons from Dexscreener for tokens missing iconUrl
@@ -1455,7 +1448,8 @@ Metrics: 'simple overview of ink network metrics',
 
 
 
-const walletUsd = portfolio?.totalValueUsd ?? 0;
+const walletUsd = (portfolio as any)?.walletValueUsd ?? 0;
+const netWorthUsd = portfolio?.totalValueUsd ?? 0;
 
 const yieldingUsd = Array.isArray(positions)
   ? positions.reduce((sum, p: any) => {
