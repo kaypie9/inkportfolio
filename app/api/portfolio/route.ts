@@ -28,6 +28,21 @@ type TokenHolding = {
 
 type TokenMarketData = { priceUsd: number; logoUrl?: string }
 
+async function getEthUsdPrice(): Promise<number> {
+  try {
+    const res = await fetch(
+      'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd',
+      { cache: 'no-store' }
+    )
+    if (!res.ok) return 0
+    const j: any = await res.json()
+    const p = Number(j?.ethereum?.usd || 0)
+    return Number.isFinite(p) ? p : 0
+  } catch {
+    return 0
+  }
+}
+
 const BIGINT_ZERO = BigInt(0)
 
 async function ethCallRaw(to: string, data: string): Promise<string> {
@@ -169,7 +184,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: 'wallet param is required' }, { status: 400 })
     }
 
-    const [nativeInk, tokens] = await Promise.all([getNativeBalance(wallet), fetchErc20Tokens(wallet)])
+const [nativeInk, nativeUsdPrice, tokens] = await Promise.all([
+  getNativeBalance(wallet),
+  getEthUsdPrice(),
+  fetchErc20Tokens(wallet),
+])
 
     const stableSymbols = new Set(['USDC', 'USDT', 'DAI', 'GHO', 'FRAX', 'SUSD'])
 
@@ -237,11 +256,13 @@ try {
 
     const tokensUsd = pricedTokens.reduce((sum, t) => sum + (t.valueUsd || 0), 0)
 
-    const totalValueUsd = tokensUsd
+const nativeUsd = nativeUsdPrice > 0 ? nativeInk * nativeUsdPrice : 0
+const totalValueUsd = tokensUsd + nativeUsd
 
     const portfolio = {
       mock: false,
       address: wallet,
+      nativeUsdPrice,
       totalValueUsd,
       balances: {
         nativeInk,

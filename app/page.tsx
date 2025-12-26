@@ -407,6 +407,7 @@ function formatAmount(value: number, decimals: number = 4): string {
 type PortfolioResponse = {
   mock: boolean;
   address: string;
+  nativeUsdPrice?: number;
   totalValueUsd: number;
   balances: {
     nativeInk: number;
@@ -768,8 +769,14 @@ const loadPortfolio = async (
     if (!res.ok) throw new Error(`status ${res.status}`);
 
     const data: PortfolioResponse = await res.json();
-    setPortfolio(data);
-    setLastUpdatedAt(Date.now());
+setPortfolio(data);
+
+if (typeof (data as any).nativeUsdPrice === 'number') {
+  setNativeUsdPrice((data as any).nativeUsdPrice);
+}
+
+setLastUpdatedAt(Date.now());
+
 
     try {
       const resPos = await fetch(`/api/positions?wallet=${addr}`);
@@ -1448,11 +1455,18 @@ Metrics: 'simple overview of ink network metrics',
 
 
 
-  const totalValue = portfolio?.totalValueUsd ?? 0;
-  const yieldingUsd = portfolio
-    ? (portfolio.vaultDepositsUsd || 0) + (portfolio.unclaimedYieldUsd || 0)
-    : 0;
-  const walletUsd = Math.max(totalValue - yieldingUsd, 0);
+const totalValue = portfolio?.totalValueUsd ?? 0;
+
+const yieldingUsd = Array.isArray(positions)
+  ? positions.reduce((sum, p: any) => {
+      const dep = Number(p?.depositedUsd || 0)
+      const rew = Number(p?.rewardsUsd || 0)
+      return sum + (Number.isFinite(dep) ? dep : 0) + (Number.isFinite(rew) ? rew : 0)
+    }, 0)
+  : 0;
+
+const walletUsd = Math.max(totalValue - yieldingUsd, 0);
+
 
    const nftCount = nftCollections
     ? nftCollections.reduce(
