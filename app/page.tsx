@@ -27,6 +27,7 @@ import EcosystemGrid from './components/ecosystem/EcosystemGrid'
 import { inkEcosystem } from './data/ink-ecosystem'
 import ExploreDashboard from './components/explore/ExploreDashboard'
 import { getProtocolByAddress, getPositionUrl } from '@/lib/protocolRegistry'
+import { getProtocolByName } from '@/lib/positionProtocolNameMap'
 
 
 function getFavicon(url: string | null): string | null {
@@ -530,6 +531,11 @@ const [connectedEnsName, setConnectedEnsName] = useState<string | null>(null);
   const [portfolioError, setPortfolioError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+    // positions (yielding) state
+  const [positions, setPositions] = useState<any[]>([]);
+  const [isLoadingPositions, setIsLoadingPositions] = useState(false);
+  const [positionsError, setPositionsError] = useState<string | null>(null);
+
 const [walletCopied, setWalletCopied] = useState(false);
 const [txCopiedKey, setTxCopiedKey] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
@@ -733,6 +739,7 @@ const fetchNftIcon = async (address: string) => {
 };
 
 
+
 const handleOverlayConnect = () => {
   const connector = connectors[0]
   if (!connector) return
@@ -754,12 +761,27 @@ const loadPortfolio = async (
     setIsLoadingPortfolio(true);
     setPortfolioError(null);
 
+    setIsLoadingPositions(true);
+    setPositionsError(null);
+
     const res = await fetch(`/api/portfolio?wallet=${addr}`);
     if (!res.ok) throw new Error(`status ${res.status}`);
 
     const data: PortfolioResponse = await res.json();
     setPortfolio(data);
     setLastUpdatedAt(Date.now());
+
+    try {
+      const resPos = await fetch(`/api/positions?wallet=${addr}`);
+      if (!resPos.ok) throw new Error(`status ${resPos.status}`);
+      const posJson: any = await resPos.json();
+      setPositions(Array.isArray(posJson.positions) ? posJson.positions : []);
+    } catch (e) {
+      console.error('positions fetch failed', e);
+      setPositionsError('could not load positions');
+      setPositions([]);
+    }
+
 
     // try to fetch icons from Dexscreener for tokens missing iconUrl
 if (data?.tokens?.length) {
@@ -782,7 +804,9 @@ if (data?.tokens?.length) {
     return null;
   } finally {
     setIsLoadingPortfolio(false);
+    setIsLoadingPositions(false);
   }
+
 };
 
 
@@ -1416,7 +1440,7 @@ const pageSubtitles: Record<PageKey, string> = {
   Home: 'simple overview of your ink portfolio',
   Bridge: 'swap & bridge to ink',
 Metrics: 'simple overview of ink network metrics',
-  Ecosystem: 'ink ecosystem',
+  Ecosystem: 'apps and protocols',
   Explore: 'token discovery and wallet tracking',
   Language: 'language',
 }
@@ -1474,12 +1498,32 @@ const visibleTokens = portfolio
   ? portfolio.tokens.filter((t) => !isSpamToken(t))
   : [];
 
+  const poolTokenAddresses = useMemo(() => {
+  const s = new Set<string>()
+  for (const p of (Array.isArray(positions) ? positions : [])) {
+    if (p && p.lpBreakdown && typeof p.tokenAddress === 'string') {
+      s.add(p.tokenAddress.toLowerCase())
+    }
+  }
+  return s
+}, [positions])
+
+
 const walletTokens = portfolio
   ? (() => {
-      const rows: TokenHolding[] = [...visibleTokens];
+      // start with normal tokens
+      let rows: TokenHolding[] = [...visibleTokens]
 
-      const nativeBal = portfolio.balances?.nativeInk ?? 0;
-      const nativePrice = nativeUsdPrice || 0;
+      // remove pool tokens that also exist in Positions tab
+      rows = rows.filter((t) => {
+        const a = String(t.address || '').toLowerCase()
+        if (!a || a === 'native-ink') return true
+        return !poolTokenAddresses.has(a)
+      })
+
+      // add native ETH on top
+      const nativeBal = portfolio.balances?.nativeInk ?? 0
+      const nativePrice = nativeUsdPrice || 0
 
       if (nativeBal > 0) {
         rows.unshift({
@@ -1490,23 +1534,21 @@ const walletTokens = portfolio
           balance: nativeBal,
           priceUsd: nativePrice || undefined,
           valueUsd: nativePrice ? nativeBal * nativePrice : undefined,
-          iconUrl:
-            'https://assets.coingecko.com/coins/images/279/large/ethereum.png',
-        });
+          iconUrl: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png',
+        })
       }
 
-      return rows;
+      return rows
     })()
-  : [];
+  : []
 
 // auto detect LP / vault style tokens and treat them as yielding positions
 const yieldingPositions = useMemo(() => {
-  if (!portfolio) return [];
-  return portfolio.vaults || [];
-}, [portfolio]);
+  return Array.isArray(positions) ? positions : [];
+}, [positions]);
 
 const yieldingByProtocol = useMemo(() => {
-  if (!portfolio || !yieldingPositions.length) return [];
+  if (!yieldingPositions.length) return [];
 
   type GroupItem = {
     v: any;
@@ -1527,7 +1569,7 @@ const yieldingByProtocol = useMemo(() => {
   for (const v of yieldingPositions as any[]) {
     const platform = v.protocol || 'unknown';
 
-    const creatorAddr = ((v.creatorAddress as string) || '').toLowerCase();
+    const creatorAddr = (((v.factoryAddress as string) || (v.creatorAddress as string) || '')).toLowerCase();
     const rawLabel = v.poolName || v.name || v.symbol || '';
 
 const protoFromCreator = creatorAddr ? getProtocolByAddress(creatorAddr) : null
@@ -1537,21 +1579,13 @@ const protoLabel = creatorAddr
   : platform
 
 
+
     const upperSym = (v.symbol || '').toUpperCase();
     const upperPool = (rawLabel || '').toUpperCase();
 
-    let positionType: GroupItem['positionType'] = 'Staked';
+    let positionType: GroupItem['positionType'] = 'Other';
 
-    if (
-      v.lpBreakdown ||
-      upperPool.includes('AMMV2') ||
-      upperPool.includes('VAMMV2') ||
-      upperPool.includes('SAMMV2') ||
-      upperPool.includes('UNI-V2') ||
-      upperPool.includes(' LP') ||
-      upperPool.includes(' LIQUIDITY') ||
-      upperPool.includes(' POOL')
-    ) {
+    if (v.lpBreakdown) {
       positionType = 'Liquidity pool';
     } else if (
       upperPool.includes('VAULT') ||
@@ -1560,7 +1594,7 @@ const protoLabel = creatorAddr
     ) {
       positionType = 'Vault';
     } else if (
-      (upperSym.startsWith('S') && upperSym.includes('STK')) ||
+      upperSym.includes('STK') ||
       upperPool.includes('STAKED')
     ) {
       positionType = 'Staked';
@@ -1568,25 +1602,32 @@ const protoLabel = creatorAddr
       positionType = 'Other';
     }
 
-let protocolUrl = (protoFromCreator?.url || null)
-if (!protocolUrl) {
-  protocolUrl = getPositionUrl(positionType)
-}
+
+const addrKey = (
+  (v.tokenAddress as string) ||
+  (v.poolAddress as string) ||
+  (v.contractAddress as string) ||
+  ''
+).toLowerCase()
+
+const protoFromAddr = addrKey ? getProtocolByAddress(addrKey) : null
+
+const protocolUrl =
+  protoFromCreator?.url ||
+  protoFromAddr?.url ||
+  null
+
+
+
+
 
 const faviconUrl = protocolUrl ? getFavicon(protocolUrl) : null
 
 
-    const addrKey = (
-      (v.tokenAddress as string) ||
-      (v.poolAddress as string) ||
-      (v.contractAddress as string) ||
-      ''
-    ).toLowerCase();
-
-const protoFromAddr = addrKey ? getProtocolByAddress(addrKey) : null
-
 const manualIconKey =
   protoFromCreator?.icon || protoFromAddr?.icon || ''
+
+
 
 
     const manualIconSrc = manualIconKey
@@ -1598,7 +1639,7 @@ const manualIconKey =
       manualIconSrc ||
       '/platforms/dapp.svg';
 
-    const groupKey = protoLabel || platform || 'Unknown';
+    const groupKey = creatorAddr || protoLabel || platform || 'Unknown';
 
     if (!groupsByKey[groupKey]) {
       groupsByKey[groupKey] = {
@@ -1970,41 +2011,12 @@ onClick={() => go('Bridge')}
     <span className="sidebar-label">Bridge</span>
   </button>
 
-{/* Ink Metrics */}
-<button
-className={`sidebar-item ${activePage === 'Metrics' ? 'sidebar-item-active' : ''}`}
-onClick={() => go('Metrics')}
->
-  <span className='sidebar-icon-slot'>
-<span className="sidebar-icon">
-  <PresentationChartBarIcon />
-</span>
-  </span>
-  <span className='sidebar-label'>Ink Metrics</span>
-</button>
-
-{/* Ecosystem */}
-<button
-  className={`sidebar-item ${
-    activePage === "Ecosystem" ? "sidebar-item-active" : ""
-  }`}
-onClick={() => go('Ecosystem')}
->
-  <span className="sidebar-icon-slot">
-    <span className="sidebar-icon">
-      <CubeIcon />
-    </span>
-  </span>
-  <span className="sidebar-label">Ink Ecosystem</span>
-</button>
-
-
   {/* Explore */}
   <button
     className={`sidebar-item ${
       activePage === "Explore" ? "sidebar-item-active" : ""
     }`}
-onClick={() => go('Explore')}
+    onClick={() => go('Explore')}
   >
     <span className="sidebar-icon-slot">
       <span className="sidebar-icon">
@@ -2013,6 +2025,35 @@ onClick={() => go('Explore')}
     </span>
     <span className="sidebar-label">Explore</span>
   </button>
+
+{/* Metrics */}
+<button
+  className={`sidebar-item ${activePage === 'Metrics' ? 'sidebar-item-active' : ''}`}
+  onClick={() => go('Metrics')}
+>
+  <span className='sidebar-icon-slot'>
+    <span className="sidebar-icon">
+      <PresentationChartBarIcon />
+    </span>
+  </span>
+  <span className='sidebar-label'>Metrics</span>
+</button>
+
+{/* Ecosystem */}
+<button
+  className={`sidebar-item ${
+    activePage === "Ecosystem" ? "sidebar-item-active" : ""
+  }`}
+  onClick={() => go('Ecosystem')}
+>
+  <span className="sidebar-icon-slot">
+    <span className="sidebar-icon">
+      <CubeIcon />
+    </span>
+  </span>
+  <span className="sidebar-label">Ecosystem</span>
+</button>
+
 
   {/* Language */}
   <button
@@ -2867,7 +2908,7 @@ const groups: {
         (v.contractAddress as string) ||
         '';
 
-      const creatorAddr = ((v.creatorAddress as string) || '').toLowerCase();
+    const creatorAddr = (((v.factoryAddress as string) || (v.creatorAddress as string) || '')).toLowerCase();
 
 const protoFromCreator = creatorAddr ? getProtocolByAddress(creatorAddr) : null
 
@@ -2876,34 +2917,29 @@ const protocolLabel = creatorAddr
   : platform
 
 
+
       const upperSym = (v.symbol || '').toUpperCase();
       const upperPool = (label || '').toUpperCase();
 
-      let positionType = 'Staked';
+let positionType = 'Other';
 
-      if (
-        v.lpBreakdown ||
-        upperPool.includes('AMMV2') ||
-        upperPool.includes('VAMMV2') ||
-        upperPool.includes('SAMMV2') ||
-        upperPool.includes('UNI-V2') ||
-        upperPool.includes(' LP') ||
-        upperPool.includes(' LIQUIDITY') ||
-        upperPool.includes(' POOL')
-      ) {
-        positionType = 'Liquidity pool';
-      } else if (
-        upperPool.includes('VAULT') ||
-        upperPool.includes('HYDRO') ||
-        upperPool.includes('DCA')
-      ) {
-        positionType = 'Vault';
-      } else if (
-        (upperSym.startsWith('S') && upperSym.includes('STK')) ||
-        upperPool.includes('STAKED')
-      ) {
-        positionType = 'Staked';
-      }
+if (v.lpBreakdown) {
+  positionType = 'Liquidity pool';
+} else if (
+  upperPool.includes('VAULT') ||
+  upperPool.includes('HYDRO') ||
+  upperPool.includes('DCA')
+) {
+  positionType = 'Vault';
+} else if (
+  (upperSym.startsWith('S') && upperSym.includes('STK')) ||
+  upperPool.includes('STAKED')
+) {
+  positionType = 'Staked';
+} else {
+  positionType = 'Other';
+}
+
 
       const groupKind =
         positionType === 'Liquidity pool'
@@ -2917,17 +2953,22 @@ const protocolLabel = creatorAddr
 const protoFromAddr = addrKey ? getProtocolByAddress(addrKey) : null
 
 
-let protocolUrl = (protoFromCreator?.url || null)
-if (!protocolUrl) {
-  protocolUrl = getPositionUrl(positionType)
-}
+const protocolUrl =
+  protoFromCreator?.url ||
+  protoFromAddr?.url ||
+  null
+
+
 
 
 
       const faviconUrl = protocolUrl ? getFavicon(protocolUrl) : null;
 
-      const manualIconKey =
-  protoFromCreator?.icon || protoFromAddr?.icon || ''
+const manualIconKey =
+  protoFromCreator?.icon ||
+  protoFromAddr?.icon ||
+  ''
+
 
 
       const manualIconSrc = manualIconKey
@@ -2939,9 +2980,13 @@ if (!protocolUrl) {
         manualIconSrc ||
         '/platforms/dapp.svg';
 
-      const explorerUrl = creatorAddr
-        ? `https://explorer.inkonchain.com/address/${creatorAddr}`
-        : '';
+      const explorerUrl =
+  (creatorAddr && creatorAddr.startsWith('0x') && creatorAddr.length === 42)
+    ? `https://explorer.inkonchain.com/address/${creatorAddr}`
+    : (addrKey && addrKey.startsWith('0x') && addrKey.length === 42)
+      ? `https://explorer.inkonchain.com/address/${addrKey}`
+      : null;
+
 
       const groupKey = `${protocolLabel}__${groupKind}`;
 
@@ -2996,28 +3041,33 @@ return groups.map((group) => (
           >
             <div className='tx-big-icon-wrapper protocol-icon'>
 <img
-  src={group.iconSrc}
+  src={group.manualIconSrc || group.iconSrc || '/platforms/contract.svg'}
   alt={group.protocolLabel}
   className='tx-big-icon'
-  data-manual-src={group.manualIconSrc || ''}
+  data-local={group.manualIconSrc || ''}
+data-llama={`/api/defillama-icon?icon=${encodeURIComponent(group.protocolLabel)}&w=48&h=48`}
+
+
+  data-step="local"
   onError={(e) => {
-    const img = e.currentTarget as HTMLImageElement;
-    const manual = img.dataset.manualSrc;
+    const img = e.currentTarget as HTMLImageElement
+    const local = img.dataset.local || ''
+    const llama = img.dataset.llama || ''
+    const step = img.dataset.step || 'local'
 
-    // first failure - try your own protocol svg
-    if (manual && !img.dataset.triedManual) {
-      img.dataset.triedManual = '1';
-      img.src = manual;
-      return;
+    // local failed -> try llama
+    if (step === 'local' && llama) {
+      img.dataset.step = 'llama'
+      img.src = llama
+      return
     }
 
-    // if protocol svg also fails - final fallback dapp
-    if (!img.dataset.fallbackDone) {
-      img.dataset.fallbackDone = '1';
-      img.src = '/platforms/dapp.svg';
-    }
+    // llama failed -> contract.svg
+    img.dataset.step = 'done'
+    img.src = '/platforms/contract.svg'
   }}
 />
+
               <div
                 className={
                   group.kindLabel === 'Liquidity pool'
@@ -3036,7 +3086,7 @@ return groups.map((group) => (
 
               {(group.protocolUrl || group.explorerUrl) && (
                 <a
-                  href={group.protocolUrl || group.explorerUrl || '#'}
+href={group.protocolUrl || group.explorerUrl || getPositionUrl(group.kindLabel) || '#'}
                   className='tx-platform-link'
                   target='_blank'
                   rel='noreferrer'
@@ -3839,29 +3889,41 @@ if (platformIcon) {
       <div className="tx-platform-block">
         {/* BIG square icon */}
         <div className="tx-big-icon-wrapper">
-{iconKey ? (
 <img
   src={
     iconKey
-      ? `https://icons.llamao.fi/icons/protocols/${encodeURIComponent(
-          iconKey.toLowerCase().trim().replace(/\s+/g, '-')
-        )}?w=48&h=48`
+      ? `/platforms/${iconKey}.svg`
       : '/platforms/contract.svg'
   }
-  alt={tx.toLabel}
+  alt={tx.toLabel || 'platform'}
   className="tx-big-icon"
+  data-local={iconKey ? `/platforms/${iconKey}.svg` : ''}
+data-llama={
+  iconKey
+    ? `/api/defillama-icon?icon=${encodeURIComponent(iconKey)}&w=48&h=48`
+    : ''
+}
+
+  data-step="local"
   onError={(e) => {
-    e.currentTarget.src = '/platforms/contract.svg'
+    const img = e.currentTarget as HTMLImageElement
+    const local = img.dataset.local || ''
+    const llama = img.dataset.llama || ''
+    const step = img.dataset.step || 'local'
+
+    // local failed -> try llama
+    if (step === 'local' && llama) {
+      img.dataset.step = 'llama'
+      img.src = llama
+      return
+    }
+
+    // llama failed -> contract.svg
+    img.dataset.step = 'done'
+    img.src = '/platforms/contract.svg'
   }}
 />
-) : (
-  // default contract icon
-  <img
-    src="/platforms/contract.svg"
-    alt="contract"
-    className="tx-big-icon"
-  />
-)}
+
         </div>
 
         {/* Texts */}
@@ -4196,7 +4258,7 @@ activePage === 'Metrics'
   <div className='ink-divider'></div>
   <div className='positions-header-row'>
     <div className='portfolio-title-stack'>
-      <div className='section-title'>Ink Metrics</div>
+      <div className='section-title'>Metrics</div>
       <div className='section-subtitle'>Powered by public on-chain data</div>
     </div>
   </div>
@@ -4213,7 +4275,7 @@ activePage === 'Metrics'
 
     <div className="positions-header-row">
       <div className="portfolio-title-stack">
-        <div className="section-title">Ink Ecosystem</div>
+        <div className="section-title">Ecosystem</div>
         <div className="section-subtitle">
           trusted apps building on ink
         </div>
