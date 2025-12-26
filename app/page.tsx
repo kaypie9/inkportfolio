@@ -1455,7 +1455,7 @@ Metrics: 'simple overview of ink network metrics',
 
 
 
-const totalValue = portfolio?.totalValueUsd ?? 0;
+const walletUsd = portfolio?.totalValueUsd ?? 0;
 
 const yieldingUsd = Array.isArray(positions)
   ? positions.reduce((sum, p: any) => {
@@ -1465,7 +1465,9 @@ const yieldingUsd = Array.isArray(positions)
     }, 0)
   : 0;
 
-const walletUsd = Math.max(totalValue - yieldingUsd, 0);
+// net worth if you need it anywhere
+const totalValue = walletUsd + yieldingUsd;
+
 
 
    const nftCount = nftCollections
