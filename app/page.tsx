@@ -768,17 +768,14 @@ const loadPortfolio = async (
     const res = await fetch(`/api/portfolio?wallet=${addr}`);
     if (!res.ok) throw new Error(`status ${res.status}`);
 
-    const data: PortfolioResponse = await res.json();
-setPortfolio(data);
+const data: PortfolioResponse = await res.json();
 
-if (typeof (data as any).nativeUsdPrice === 'number') {
-  setNativeUsdPrice((data as any).nativeUsdPrice);
-}
+// set positions first so poolTokenAddresses is ready before walletTokens renders
+setPositions(Array.isArray((data as any).positions) ? (data as any).positions : [])
+setPositionsError(null)
 
-setLastUpdatedAt(Date.now());
+setPortfolio(data)
 
-
-          setPositions(Array.isArray((data as any).positions) ? (data as any).positions : [])
       setPositionsError(null)
 
 
@@ -1770,6 +1767,24 @@ useEffect(() => {
     });
   });
 }, [filteredTxs, tokenIcons]);
+
+
+// prefetch NFT icons for NFT tx legs (DO NOT do this in render)
+useEffect(() => {
+  filteredTxs.forEach(tx => {
+    ;(tx.tokens || []).forEach(t => {
+      const addr = (t.address || '').toLowerCase()
+      if (!addr) return
+
+      const sym = (t.symbol || '').toUpperCase()
+      if (!sym.includes('#')) return
+
+      // only if not cached
+      if (tokenIcons[addr]) return
+      fetchNftIcon(addr)
+    })
+  })
+}, [filteredTxs, tokenIcons])
 
 
 const showTxFullLoader = isLoadingTxs && txPage === 1;
@@ -3728,25 +3743,48 @@ const rightIcon =
         {/* rows */}
 {filteredTxs.map((tx) => {
 
-  const legs = parseTxDetails(tx.details);
-  const isScamTx =
-    tx.tokens.length > 0 &&
-    tx.tokens.every(t => isSpamSymbol(t.symbol));
+// scam filter should only tag low-signal INCOMING junk
+// never tag OUT / SELF tx as scam
+const legs = parseTxDetails(tx.details);
+
+const hasOut = legs.some((l) => l.direction === "out");
+const hasIn = legs.some((l) => l.direction === "in");
+const allInOnly = legs.length > 0 && legs.every((l) => l.direction === "in");
+
+// basic intent signals
+const lowerDetails = (tx.details || "").toLowerCase();
+const methodLower = (tx.method || "").toLowerCase();
+const looksIntentional =
+  methodLower.includes("swap") ||
+  methodLower.includes("approve") ||
+  methodLower.includes("increaseallowance") ||
+  methodLower.includes("decreaseallowance") ||
+  lowerDetails.includes("swap") ||
+  lowerDetails.includes("approve");
+
+// only consider scam if it is incoming and has zero native value and no outgoing leg
+const allTokenSymbolsLookSpam =
+  tx.tokens.length > 0 &&
+  tx.tokens.every((t) => isSpamSymbol(t.symbol));
+
+const hasNativeValue = Number(tx.valueInk || 0) > 0;
+
+const isScamTx =
+  tx.direction === "in" &&
+  !hasOut &&
+  !hasNativeValue &&
+  allInOnly &&
+  allTokenSymbolsLookSpam &&
+  !looksIntentional;
+
+const isSwapLike = hasOut && hasIn && legs.length >= 2;
+const methodName = (tx.method || "").trim();
+const allIn = allInOnly;
+const allOutOnly = legs.length > 0 && legs.every((l) => l.direction === "out");
+
 
   const isFailed =
     (tx.status || '').toLowerCase() !== 'ok';
-
-
-
-  const hasOut = legs.some((l) => l.direction === "out");
-  const hasIn = legs.some((l) => l.direction === "in");
-  const isSwapLike = hasOut && hasIn && legs.length >= 2;
-
-  const allIn = legs.length > 0 && legs.every((l) => l.direction === "in");
-  const allOutOnly = legs.length > 0 && legs.every((l) => l.direction === "out");
-
-  const lowerDetails = (tx.details || "").toLowerCase();
-  const methodName = (tx.method || "").trim();
 
   const contractName = tx.toLabel || "";
   const contractNameLower = contractName.toLowerCase();
@@ -4094,9 +4132,7 @@ let addrKey = matchToken?.address
   : '';
 
   // If symbol contains #, it's an NFT → fetch Blockscout icon
-if (symbolUpper.includes("#") && addrKey) {
-  fetchNftIcon(addrKey);
-}
+
 
 let portfolioToken =
   portfolio?.tokens.find(
