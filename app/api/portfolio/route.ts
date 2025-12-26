@@ -814,29 +814,41 @@ if (nadoUsd && Number.isFinite(nadoUsd) && nadoUsd > 0) {
 
 const enrichedVaults: VaultPosition[] = await Promise.all(
   vaults.map(async (v) => {
+    // if we already have a valid creatorAddress (like Nado), do not overwrite it
+    const existing = (v.creatorAddress || '').toLowerCase()
+    if (existing.startsWith('0x') && existing.length === 42) {
+      return v
+    }
+
     const rawAddr: string =
-      v.tokenAddress ||
       (v as any).poolAddress ||
       (v as any).contractAddress ||
+      v.tokenAddress ||
       ''
 
     if (!rawAddr) return v
 
     const addr = rawAddr.toLowerCase()
 
+    // only try resolving creator for real addresses
+    if (!addr.startsWith('0x') || addr.length !== 42) {
+      return v
+    }
+
     let creator: string | null = null
     try {
-creator = await resolveCreatorAddress(addr)
+      creator = await resolveCreatorAddress(addr)
     } catch {
       creator = null
     }
 
     return {
       ...v,
-      creatorAddress: creator,
+      creatorAddress: creator || v.creatorAddress || null,
     }
   }),
 )
+
 
 
 

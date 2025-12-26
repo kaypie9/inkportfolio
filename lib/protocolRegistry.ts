@@ -16,6 +16,26 @@ export const PROTOCOLS: ProtocolDef[] = [
       '0x458c5d5b75ccba22651d2c5b61cb1ea1e0b0f95d',
     ],
   },
+    {
+    label: 'Stargate',
+    icon: 'Stargate Finance',
+    url: '',
+    contracts: [
+      '0xf1815bd50389c46847f0bda824ec8da914045d14',
+      '',
+      '',
+    ],
+  },
+   {
+    label: 'Relay',
+    icon: 'Relay',
+    url: '',
+    contracts: [
+      '0xccc88a9d1b4ed6b0eaba998850414b24f1c315be',
+      '',
+      '',
+    ],
+  },
   {
     label: 'Dailygm',
     icon: 'dailygm',
@@ -28,7 +48,10 @@ export const PROTOCOLS: ProtocolDef[] = [
     label: 'Nado',
     icon: 'Nado',
     url: 'https://app.nado.xyz/',
-    contracts: ['0x05ec92d78ed421f3d3ada77ffde167106565974e'],
+    contracts: [
+      '0x05ec92d78ed421f3d3ada77ffde167106565974e',
+      '0x09fb495aa7859635f755e827d64c4c9a2e5b9651',
+    ],
   },
   {
     label: 'LiFi',
@@ -48,6 +71,9 @@ export const PROTOCOLS: ProtocolDef[] = [
     label: 'Dinero',
     icon: 'dinero',
     url: 'https://ink.dinero.xyz/app',
+    contracts: [
+      '0x355912b2f4cc9da67975cbf2685aaf9874a4d631',
+    ],
   },
 ]
 
@@ -82,11 +108,7 @@ export function getProtocolUrlByAddress(address?: string | null): string | null 
 }
 
 export const POSITION_URLS: Record<string, string> = {
-  Vault: 'https://inkonchain.com/staking',
-  Staked: 'https://inkonchain.com/staking',
-  Deposits: 'https://inkonchain.com/staking',
-  'Liquidity pool': 'https://inkonchain.com/swap',
-  Other: '',
+    Other: 'link',
 }
 
 export function getPositionUrl(positionType?: string | null): string | null {

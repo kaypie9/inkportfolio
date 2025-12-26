@@ -545,7 +545,8 @@ const [txCopiedKey, setTxCopiedKey] = useState<string | null>(null);
   const contactIsValid = !isContactMode || isValidContactInfo(feedbackContact);
 
   // icons from Dexscreener keyed by token address
-  const [tokenIcons, setTokenIcons] = useState<{ [addr: string]: string }>({});
+const [tokenIcons, setTokenIcons] = useState<{ [addr: string]: string }>({})
+const [txPlatformIcons, setTxPlatformIcons] = useState<{ [addr: string]: string }>({})
 
   // history range and data
   const [historyRange, setHistoryRange] = useState<HistoryRange>("24H");
@@ -701,6 +702,7 @@ const fetchDexIcon = async (address: string) => {
     console.error('token-icon api crashed', e);
   }
 };
+
 
 // fetch NFT icon from Blockscout
 const fetchNftIcon = async (address: string) => {
@@ -1759,7 +1761,8 @@ return (
       </div>
     )}
 
-    <PreloadPlatformIcons />
+<PreloadPlatformIcons />
+<link rel="preconnect" href="https://icons.llamao.fi" />
     {/* top header */}
     <header
     
@@ -3837,11 +3840,20 @@ if (platformIcon) {
         {/* BIG square icon */}
         <div className="tx-big-icon-wrapper">
 {iconKey ? (
-  <img
-    src={`/platforms/${iconKey}.svg`}
-    alt={tx.toLabel}
-    className="tx-big-icon"
-  />
+<img
+  src={
+    iconKey
+      ? `https://icons.llamao.fi/icons/protocols/${encodeURIComponent(
+          iconKey.toLowerCase().trim().replace(/\s+/g, '-')
+        )}?w=48&h=48`
+      : '/platforms/contract.svg'
+  }
+  alt={tx.toLabel}
+  className="tx-big-icon"
+  onError={(e) => {
+    e.currentTarget.src = '/platforms/contract.svg'
+  }}
+/>
 ) : (
   // default contract icon
   <img
