@@ -780,18 +780,25 @@ setPortfolio(data)
 
 
 
-    // try to fetch icons from Dexscreener for tokens missing iconUrl
-if (data?.tokens?.length) {
-  data.tokens.forEach((t) => {
-    if (!t.address) return;
-    if (t.iconUrl) return;
+// defer and throttle icon fetches so UI renders fast
+setTimeout(() => {
+  const list = (data?.tokens || [])
+    .filter(t => t?.address && !t.iconUrl)
+    .map(t => String(t.address).toLowerCase())
+    .filter(a => a && !tokenIcons[a])
 
-    const key = t.address.toLowerCase();
-    if (tokenIcons[key]) return;
+  const uniq = Array.from(new Set(list)).slice(0, 40) // cap per load
 
-    fetchDexIcon(t.address);
-  });
-}
+  let i = 0
+  const tick = async () => {
+    const batch = uniq.slice(i, i + 6) // 6 at a time
+    i += 6
+    await Promise.allSettled(batch.map(a => fetchDexIcon(a)))
+    if (i < uniq.length) setTimeout(tick, 120)
+  }
+  tick()
+}, 0)
+
 
 
     return data;
@@ -998,10 +1005,12 @@ useEffect(() => {
     setTxs([]);
   }
 
-  loadPortfolio(walletAddress);
-  loadHistory(walletAddress, historyRange);
-  loadNfts(walletAddress);
-  loadNftSpent(walletAddress);
+loadPortfolio(walletAddress)
+Promise.allSettled([
+  loadHistory(walletAddress, historyRange),
+  loadNfts(walletAddress),
+  loadNftSpent(walletAddress),
+])
 }, [walletAddress]);
 
 
@@ -1909,13 +1918,14 @@ onKeyDown={async (e) => {
   setNetWorthHistory([]);
   setHoverIndex(null);
 
-  if (!sameWallet) {
-    setWalletAddress(targetAddress);
-  }
+if (!sameWallet) {
+  setWalletAddress(targetAddress)
+  return
+}
 
-  await refreshAll(targetAddress);
-  loadNfts(targetAddress);
-  loadNftSpent(targetAddress);
+// same wallet only: manual refresh
+await refreshAll(targetAddress)
+
 }}
 />
           </div>
