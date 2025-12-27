@@ -544,6 +544,15 @@ const [txCopiedKey, setTxCopiedKey] = useState<string | null>(null);
 // feedback
 const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 const [isAboutOpen, setIsAboutOpen] = useState(false);
+const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
+const [isTermsOpen, setIsTermsOpen] = useState(false);
+const closeAllInfoModals = () => {
+  setIsFeedbackOpen(false)
+  setIsAboutOpen(false)
+  setIsPrivacyOpen(false)
+  setIsTermsOpen(false)
+}
+
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [feedbackCategory, setFeedbackCategory] = useState<'feature' | 'bug' | 'idea' | 'other' | 'contact'>('feature');
   const [feedbackContact, setFeedbackContact] = useState('');
@@ -2120,60 +2129,76 @@ onClick={() => go('Bridge')}
   </button>
 
   <button
-    className='sidebar-footer-feedback'
+    className="sidebar-footer-contact"
     onClick={() => {
-      setFeedbackCategory('feature');
-      setFeedbackMessage('');
-      setFeedbackContact('');
-      setFeedbackStatus('idle');
-      setIsFeedbackOpen(true);
+      setFeedbackCategory('feature')
+      setIsFeedbackOpen(true)
     }}
   >
-    <span className='sidebar-bottom-icon'>
+    <span className="sidebar-bottom-icon">
       <ChatBubbleLeftRightIcon width={16} height={16} />
     </span>
-    <span className='sidebar-twitter-label'>feedback</span>
+    <span className="sidebar-twitter-label">feedback</span>
   </button>
 
   <button
-    className='sidebar-footer-contact'
+    className="sidebar-footer-contact"
     onClick={() => {
-      setFeedbackCategory('contact');
-      setFeedbackMessage('');
-      setFeedbackContact('');
-      setFeedbackStatus('idle');
-      setIsFeedbackOpen(true);
+      setFeedbackCategory('contact')
+      setIsFeedbackOpen(true)
     }}
   >
-    <span className='sidebar-bottom-icon'>
+    <span className="sidebar-bottom-icon">
       <EnvelopeIcon width={16} height={16} />
     </span>
-    <span className='sidebar-twitter-label'>contact us</span>
+    <span className="sidebar-twitter-label">contact us</span>
   </button>
-    <button
-    className='sidebar-footer-contact'
-    onClick={() => setIsAboutOpen(true)}
-  >
-    <span className='sidebar-bottom-icon'>
-      <InformationCircleIcon width={16} height={16} />
-    </span>
-    <span className='sidebar-twitter-label'>about us</span>
-  </button>
-
 </div>
+
 
 
 {/* footer links + copyright */}
 <div className="sidebar-footer">
   {/* text links (only when sidebar is open) */}
-  <div className="sidebar-footer-links-row">
+<div className="sidebar-footer-links-row">
+  <button
+    type="button"
+    className="sidebar-footer-link"
+onClick={() => {
+  closeAllInfoModals()
+  setIsAboutOpen(true)
+}}
+  >
+    About Us
+  </button>
 
-
-  {/*
   <span className="sidebar-footer-dot">•</span>
-  <button className="sidebar-footer-link">Terms of service</button>
-  */}
+
+  <button
+    type="button"
+    className="sidebar-footer-link"
+onClick={() => {
+  closeAllInfoModals()
+  setIsTermsOpen(true)
+}}
+  >
+    Terms of service
+  </button>
+
+  <span className="sidebar-footer-dot">•</span>
+
+  <button
+    type="button"
+    className="sidebar-footer-link"
+onClick={() => {
+  closeAllInfoModals()
+  setIsPrivacyOpen(true)
+}}
+  >
+    Privacy
+  </button>
 </div>
+
 
 
   {/* three dots (collapsed only) */}
@@ -4395,6 +4420,80 @@ activePage === 'Metrics'
           </div>
         </main>
       </div>
+
+{isPrivacyOpen && (
+  <div
+    className='feedback-overlay'
+    onClick={() => setIsPrivacyOpen(false)}
+  >
+    <div
+      className='feedback-modal about-modal'
+      onClick={e => e.stopPropagation()}
+    >
+      <div className='feedback-modal-header'>
+        <h2 className='feedback-title'>Privacy Policy</h2>
+        <button
+          className='feedback-close-btn'
+          onClick={() => setIsPrivacyOpen(false)}
+        >
+          ×
+        </button>
+      </div>
+
+      <div className='feedback-body'>
+        <div style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.9 }}>
+Inkavern does not create user accounts and does not store private keys.
+          <br /><br />
+Public wallet addresses may be stored to generate historical portfolio charts and net worth changes.
+          <br /><br />
+All blockchain data displayed is public by nature.
+          <br /><br />
+We do not sell personal data.
+          <br /><br />
+Anonymous analytics may be used to improve the product.
+          <br /><br />
+By using Inkavern, you agree to this policy.
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+{isTermsOpen && (
+  <div
+    className='feedback-overlay'
+    onClick={() => setIsTermsOpen(false)}
+  >
+    <div
+      className='feedback-modal about-modal'
+      onClick={e => e.stopPropagation()}
+    >
+      <div className='feedback-modal-header'>
+        <h2 className='feedback-title'>Terms of Service</h2>
+        <button
+          className='feedback-close-btn'
+          onClick={() => setIsTermsOpen(false)}
+        >
+          ×
+        </button>
+      </div>
+
+      <div className='feedback-body'>
+        <div style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.9 }}>
+          Inkavern is an informational dashboard only.
+          <br /><br />
+          We do not execute transactions or control user funds.
+          <br /><br />
+          Any swaps or bridges are handled by third-party services.
+          <br /><br />
+          All actions taken using external links or embedded tools are the user’s responsibility.
+          <br /><br />
+          Inkavern is provided as is, without guarantees.
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
       {isAboutOpen && (
   <div
