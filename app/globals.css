@@ -12374,3 +12374,124 @@ body[data-theme="dark"].theme-switching *{
   gap: 10px;
   margin-bottom: 22px; /* 👈 THIS is the gap */
 }
+/* =========================
+   About modal polish
+   ========================= */
+
+/* base */
+.about-modal{
+  width: min(520px, calc(100vw - 40px));
+}
+
+.about-modal .feedback-title{
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.about-modal .feedback-body{
+  padding-top: 10px;
+}
+
+.about-modal .feedback-body > div{
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.about-modal .feedback-submit-btn{
+  border-radius: 999px;
+  height: 36px;
+  padding: 0 14px;
+  font-weight: 700;
+}
+
+/* DARK */
+body[data-theme='dark'] .feedback-overlay{
+  background: rgba(2,6,23,0.62);
+  backdrop-filter: blur(10px);
+}
+
+body[data-theme='dark'] .about-modal{
+  background: rgba(8,12,24,0.78);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 28px 90px rgba(0,0,0,0.55);
+  color: rgba(255,255,255,0.92);
+}
+
+body[data-theme='dark'] .about-modal .feedback-close-btn{
+  color: rgba(255,255,255,0.70);
+}
+
+body[data-theme='dark'] .about-modal .feedback-close-btn:hover{
+  color: rgba(255,255,255,0.92);
+}
+
+body[data-theme='dark'] .about-modal .feedback-submit-btn{
+  background: rgba(124,58,237,0.92);
+  border: 1px solid rgba(255,255,255,0.10);
+  color: white;
+}
+
+body[data-theme='dark'] .about-modal .feedback-submit-btn:hover{
+  filter: brightness(1.06);
+}
+
+/* LIGHT */
+body[data-theme='light'] .feedback-overlay{
+  background: rgba(2,6,23,0.28);
+  backdrop-filter: blur(10px);
+}
+
+body[data-theme='light'] .about-modal{
+  background: rgba(255,255,255,0.90);
+  border: 1px solid rgba(15,23,42,0.10);
+  box-shadow: 0 22px 70px rgba(2,6,23,0.16);
+  color: rgba(15,23,42,0.90);
+}
+
+body[data-theme='light'] .about-modal .feedback-close-btn{
+  color: rgba(15,23,42,0.55);
+}
+
+body[data-theme='light'] .about-modal .feedback-close-btn:hover{
+  color: rgba(15,23,42,0.85);
+}
+
+body[data-theme='light'] .about-modal .feedback-submit-btn{
+  background: rgba(124,58,237,0.92);
+  border: 1px solid rgba(15,23,42,0.10);
+  color: white;
+}
+
+body[data-theme='light'] .about-modal .feedback-submit-btn:hover{
+  filter: brightness(1.05);
+}
+/* About modal title color */
+body[data-theme='dark'] .about-modal .feedback-title{
+  color: rgba(255,255,255,0.92);
+}
+
+body[data-theme='light'] .about-modal .feedback-title{
+  color: rgba(15,23,42,0.90);
+}
+body[data-theme='dark'] .about-email-link{
+  color: rgba(255,255,255,0.9);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+body[data-theme='light'] .about-email-link{
+  color: rgba(15,23,42,0.88);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+body[data-theme='dark'] .about-email-link:hover,
+body[data-theme='light'] .about-email-link:hover{
+  opacity: 0.75;
+}
+.sidebar-footer-twitter:hover .sidebar-bottom-icon,
+.sidebar-footer-feedback:hover .sidebar-bottom-icon,
+.sidebar-footer-contact:hover .sidebar-bottom-icon {
+  transform: none;
+}

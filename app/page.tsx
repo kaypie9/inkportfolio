@@ -185,7 +185,7 @@ const pathToPage = (path: string): PageKey => {
 if (p.startsWith('/metrics') || p.startsWith('/ink')) return 'Metrics'
   if (p.startsWith('/ecosystem')) return 'Ecosystem'
   if (p.startsWith('/explore')) return 'Explore'
-  if (p.startsWith('/language')) return 'Language'
+  // if (p.startsWith('/language')) return 'Language'
 
   return 'Home'
 }
@@ -542,7 +542,8 @@ const [txCopiedKey, setTxCopiedKey] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
 
 // feedback
-  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [feedbackCategory, setFeedbackCategory] = useState<'feature' | 'bug' | 'idea' | 'other' | 'contact'>('feature');
   const [feedbackContact, setFeedbackContact] = useState('');
@@ -2083,12 +2084,13 @@ onClick={() => go('Bridge')}
 </button>
 
 
-  {/* Language */}
+  {/* Language (hidden for now) */}
+  {/*
   <button
     className={`sidebar-item ${
       activePage === "Language" ? "sidebar-item-active" : ""
     }`}
-onClick={() => go('Language')}
+    onClick={() => go('Language')}
   >
     <span className="sidebar-icon-slot">
       <span className="sidebar-icon">
@@ -2097,6 +2099,8 @@ onClick={() => go('Language')}
     </span>
     <span className="sidebar-label">English</span>
   </button>
+  */}
+
 </nav>
 
 
@@ -2146,6 +2150,16 @@ onClick={() => go('Language')}
     </span>
     <span className='sidebar-twitter-label'>contact us</span>
   </button>
+    <button
+    className='sidebar-footer-contact'
+    onClick={() => setIsAboutOpen(true)}
+  >
+    <span className='sidebar-bottom-icon'>
+      <InformationCircleIcon width={16} height={16} />
+    </span>
+    <span className='sidebar-twitter-label'>about us</span>
+  </button>
+
 </div>
 
 
@@ -2153,10 +2167,14 @@ onClick={() => go('Language')}
 <div className="sidebar-footer">
   {/* text links (only when sidebar is open) */}
   <div className="sidebar-footer-links-row">
-    <button className="sidebar-footer-link">About Us</button>
-    <span className="sidebar-footer-dot">•</span>
-    <button className="sidebar-footer-link">Terms of service</button>
-  </div>
+
+
+  {/*
+  <span className="sidebar-footer-dot">•</span>
+  <button className="sidebar-footer-link">Terms of service</button>
+  */}
+</div>
+
 
   {/* three dots (collapsed only) */}
   <button
@@ -4358,6 +4376,8 @@ activePage === 'Metrics'
 )}
 
 
+{/* Language page hidden for now */}
+{/*
 {activePage === 'Language' && (
   <section className="positions-section">
     <div className="ink-divider"></div>
@@ -4369,10 +4389,55 @@ activePage === 'Metrics'
     </div>
   </section>
 )}
+*/}
+
 
           </div>
         </main>
       </div>
+
+      {isAboutOpen && (
+  <div
+    className='feedback-overlay'
+    onClick={() => setIsAboutOpen(false)}
+  >
+    <div
+  className='feedback-modal about-modal'
+  onClick={e => e.stopPropagation()}
+>
+
+      <div className='feedback-modal-header'>
+        <h2 className='feedback-title'>About Inkavern</h2>
+        <button
+          className='feedback-close-btn'
+          onClick={() => setIsAboutOpen(false)}
+        >
+          ×
+        </button>
+      </div>
+
+      <div className='feedback-body'>
+        <div style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.9 }}>
+  Inkavern is a simple dashboard for Ink wallets.
+  <br />
+  Track tokens, positions, NFTs, and transactions in one place.
+  <br />
+  Built for the Ink community.
+
+  <div style={{ marginTop: 10, fontSize: 12, opacity: 0.85 }}>
+    Contact: <a className='about-email-link' href='mailto:inkavern@gmail.com'>inkavern@gmail.com</a>
+  </div>
+</div>
+
+
+        <div style={{ marginTop: 14, display: 'flex', gap: 10 }}>
+
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
       {isFeedbackOpen && (
         <div
           className='feedback-overlay'
@@ -4458,7 +4523,7 @@ activePage === 'Metrics'
   rows={4}
   placeholder={
     feedbackCategory === 'contact'
-      ? 'Describe what you need help with on inkfolio'
+      ? 'Describe what you need help with on inkavern'
       : 'Tell us what you like, what is broken, or what you want next on ink'
   }
   value={feedbackMessage}
