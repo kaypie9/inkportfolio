@@ -31,7 +31,7 @@ export async function sendFeedbackEmail(payload: FeedbackPayload) {
   const subject = `[ink feedback] ${payload.category || 'feedback'}`;
 
   const textLines = [
-    `New feedback on ink dashboard`,
+    `New feedback on inkavern`,
     ``,
     `Message:`,
     payload.message,
@@ -46,7 +46,7 @@ export async function sendFeedbackEmail(payload: FeedbackPayload) {
 
   const html = `
     <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; color: #0f172a;">
-      <h2 style="margin: 0 0 12px 0;">New feedback on ink dashboard</h2>
+      <h2 style="margin: 0 0 12px 0;">New feedback on inkavern</h2>
 
       <p style="margin: 0 0 8px 0;"><strong>Category</strong>: ${payload.category || 'n/a'}</p>
       <p style="margin: 0 0 8px 0;"><strong>Contact</strong>: ${payload.contact || 'n/a'}</p>

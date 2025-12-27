@@ -780,24 +780,19 @@ setPortfolio(data)
 
 
 
-// defer and throttle icon fetches so UI renders fast
-setTimeout(() => {
-  const list = (data?.tokens || [])
-    .filter(t => t?.address && !t.iconUrl)
-    .map(t => String(t.address).toLowerCase())
-    .filter(a => a && !tokenIcons[a])
+// try to fetch icons from Dexscreener for tokens missing iconUrl
+if (data?.tokens?.length) {
+  data.tokens.forEach((t) => {
+    if (!t.address) return;
+    if (t.iconUrl) return;
 
-  const uniq = Array.from(new Set(list)).slice(0, 40) // cap per load
+    const key = t.address.toLowerCase();
+    if (tokenIcons[key]) return;
 
-  let i = 0
-  const tick = async () => {
-    const batch = uniq.slice(i, i + 6) // 6 at a time
-    i += 6
-    await Promise.allSettled(batch.map(a => fetchDexIcon(a)))
-    if (i < uniq.length) setTimeout(tick, 120)
-  }
-  tick()
-}, 0)
+    fetchDexIcon(t.address);
+  });
+}
+
 
 
 
@@ -1005,12 +1000,10 @@ useEffect(() => {
     setTxs([]);
   }
 
-loadPortfolio(walletAddress)
-Promise.allSettled([
-  loadHistory(walletAddress, historyRange),
-  loadNfts(walletAddress),
-  loadNftSpent(walletAddress),
-])
+loadPortfolio(walletAddress);
+loadHistory(walletAddress, historyRange);
+loadNfts(walletAddress);
+loadNftSpent(walletAddress);
 }, [walletAddress]);
 
 
@@ -1435,11 +1428,11 @@ const toggleTheme = () => {
   
 const pageTitles: Record<PageKey, string> = {
   Home: 'Ink Dashboard',
-  Bridge: 'Ink Dashboard',
-Metrics: 'Ink Dashboard',
-  Ecosystem: 'Ink Dashboard',
-  Explore: 'Ink Dashboard',
-  Language: 'Ink Dashboard',
+  Bridge: 'Bridge',
+  Metrics: 'Metrics',
+  Ecosystem: 'Ecosystem',
+  Explore: 'Explore',
+  Language: 'Language',
 }
 
 const pageSubtitles: Record<PageKey, string> = {
@@ -1919,12 +1912,12 @@ onKeyDown={async (e) => {
   setHoverIndex(null);
 
 if (!sameWallet) {
-  setWalletAddress(targetAddress)
-  return
+  setWalletAddress(targetAddress);
 }
 
-// same wallet only: manual refresh
-await refreshAll(targetAddress)
+await refreshAll(targetAddress);
+loadNfts(targetAddress);
+loadNftSpent(targetAddress);
 
 }}
 />
@@ -1983,8 +1976,8 @@ await refreshAll(targetAddress)
           {/* logo + pin row */}
           <div className="sidebar-brand">
             <div className="sidebar-logo-wrapper">
-              <div className="sidebar-logo-small">IN</div>
-              <span className="sidebar-app-name">Ink Dashboard</span>
+<img src='/logo.png' alt='logo' className='sidebar-logo-img' />
+              <span className="sidebar-app-name">Inkavern</span>
             </div>
 
             <button
@@ -2114,7 +2107,7 @@ onClick={() => go('Language')}
 
   <button
     className="sidebar-footer-twitter"
-    onClick={() => window.open("https://x.com/YOUR_HANDLE", "_blank")}
+    onClick={() => window.open("https://x.com/inkavern", "_blank")}
   >
     <span className="sidebar-bottom-icon">
       <TwitterIconSvg />
@@ -2178,7 +2171,7 @@ onClick={() => go('Language')}
   {/* copyright row (open = normal, collapsed = big C) */}
   <div className="sidebar-footer-copy">
     <span className="sidebar-footer-copy-symbol">©</span>
-    <span className="sidebar-footer-copy-text">2025 Ink Dashboard</span>
+    <span className="sidebar-footer-copy-text">2025 Inkavern</span>
   </div>
 </div>
 
@@ -2193,9 +2186,12 @@ onClick={() => go('Language')}
 
 <div className="main-header-row">
   <div>
-    <h1 className="page-title">Ink Dashboard</h1>
+    {activePage === 'Home' && (
+      <h1 className="page-title">{pageTitles[activePage]}</h1>
+    )}
     <p className="page-subtitle">{pageSubtitles[activePage]}</p>
   </div>
+
 
 {activePage === 'Home' && (
   <div className="main-header-right">
@@ -4488,7 +4484,7 @@ activePage === 'Metrics'
             <div className='feedback-footer-row'>
               {feedbackStatus === 'ok' && (
                 <span className='feedback-status-ok'>
-                  Sent. Thank you for helping improve ink dashboard.
+                  Sent. Thank you for helping improve inkavern.
                 </span>
               )}
               {feedbackStatus === 'error' && (

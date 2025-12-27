@@ -76,9 +76,11 @@ export default function EcosystemGrid(props: { items: EcosystemItem[] }) {
   const [cat, setCat] = useState<(typeof CATS)[number]>('All')
   const [q, setQ] = useState('')
 
-  const filtered = useMemo(() => {
-    const qq = q.trim().toLowerCase()
-    return props.items.filter((it) => {
+const filtered = useMemo(() => {
+  const qq = q.trim().toLowerCase()
+
+  return props.items
+    .filter((it) => {
       if (cat !== 'All' && it.category !== cat) return false
       if (!qq) return true
       const hay = [
@@ -92,7 +94,13 @@ export default function EcosystemGrid(props: { items: EcosystemItem[] }) {
         .toLowerCase()
       return hay.includes(qq)
     })
-  }, [props.items, cat, q])
+    .sort((a, b) => {
+      if (a.featured && !b.featured) return -1
+      if (!a.featured && b.featured) return 1
+      return 0
+    })
+}, [props.items, cat, q])
+
 
   return (
   <div className='eco-scope space-y-4'>
@@ -155,9 +163,22 @@ export default function EcosystemGrid(props: { items: EcosystemItem[] }) {
 
             <div className='relative flex items-start justify-between gap-3'>
               <div className='flex items-center gap-3'>
-                <div
-                  className={cx('h-12 w-12 rounded-2xl', 'bg-black/30 border border-white/10')}
-                />
+                <img
+src={`/ecosystem-icons/${it.id}.webp`}
+  alt={it.name}
+  className={cx('h-12 w-12 rounded-2xl object-cover', 'bg-black/30 border border-white/10')}
+onError={(e) => {
+  const el = e.currentTarget
+  el.style.display = 'none'
+  const parent = el.parentElement
+  if (parent) {
+    const fallback = document.createElement('div')
+    fallback.className = 'h-12 w-12 rounded-2xl bg-black/30 border border-white/10'
+    parent.appendChild(fallback)
+  }
+}}
+/>
+
                 <div>
                   <div className='flex items-center gap-2'>
                     <h3 className='text-lg font-semibold text-white'>{it.name}</h3>

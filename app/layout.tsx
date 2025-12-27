@@ -2,6 +2,13 @@ import './globals.css'
 import type { ReactNode } from 'react'
 import { InkWagmiProvider } from './ink-wagmi-provider'
 
+
+export const metadata = {
+  icons: {
+    icon: '/favicon.png',
+  },
+}
+
 const themeScript = `
 (() => {
   try {
@@ -24,3 +31,4 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     </html>
   )
 }
+

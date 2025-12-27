@@ -44,7 +44,7 @@ return (
 
         <div className='ink-emptyicon' aria-hidden='true'>
   <img
-    src='/ink-logo-purple-white-icon.svg'
+    src='/logo.png'
     alt='Ink'
     className='ink-emptylogo'
   />

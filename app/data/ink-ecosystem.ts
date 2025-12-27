@@ -9,8 +9,10 @@ export type EcosystemItem = {
   featured?: boolean
   badges?: string[]
   icon?: string
+  llamaSlug?: string
   links: Partial<Record<EcosystemLinkKey, string>>
 }
+
 
 export const inkEcosystem: EcosystemItem[] = [
   {
@@ -104,7 +106,7 @@ export const inkEcosystem: EcosystemItem[] = [
 
   // === BRIDGES / CROSS-CHAIN ===
   {
-    id: 'across',
+    id: 'acrossprotocol',
     name: 'Across',
     category: 'Bridge',
     description: 'Fast, secure bridge with intent-based transfers.',
@@ -137,7 +139,7 @@ export const inkEcosystem: EcosystemItem[] = [
   },
    },
   {
-    id: 'orbiter',
+    id: 'orbiter-finance',
     name: 'Orbiter',
     category: 'Bridge',
     description: 'Low-cost bridge optimized for L2 transfers.',
@@ -159,7 +161,7 @@ export const inkEcosystem: EcosystemItem[] = [
   },
    },
   {
-    id: 'jumper',
+    id: 'jumper-exchange',
     name: 'Jumper',
     category: 'Bridge',
     description: 'Cross-chain swap and bridge aggregator by LI.FI.',
@@ -266,7 +268,7 @@ export const inkEcosystem: EcosystemItem[] = [
 
   // === MISC / UTILS ===
   {
-    id: 'gaszip',
+    id: 'gas-zip',
     name: 'Gas.zip',
     category: 'Tools',
     description: 'One-click gas funding across chains.',
@@ -277,7 +279,7 @@ export const inkEcosystem: EcosystemItem[] = [
   },
    },
 {
-  id: 'zns',
+  id: 'znsconnect',
   name: 'ZNS Connect',
   category: 'Infra',
   description: 'Onchain naming system for decentralized identities.',
