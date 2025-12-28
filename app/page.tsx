@@ -176,29 +176,49 @@ const RefreshIcon = () => (
   </svg>
 );
 
+const getWalletFromPath = (path: string): string | null => {
+  const p = (path || '').toLowerCase()
+
+  if (p.startsWith('/address/')) {
+    const addr = p.replace('/address/', '').split('/')[0]
+    if (addr.startsWith('0x') && addr.length === 42) return addr
+  }
+
+  return null
+}
+
 const pathToPage = (path: string): PageKey => {
   const p = (path || '').toLowerCase()
 
-  if (p === '/' || p === '/home') return 'Home'
+  //  style path
+  if (p.startsWith('/address/')) return 'Home'
 
+  if (p === '/' || p === '/home') return 'Home'
   if (p.startsWith('/bridge') || p.startsWith('/swap')) return 'Bridge'
-if (p.startsWith('/metrics') || p.startsWith('/ink')) return 'Metrics'
+  if (p.startsWith('/metrics') || p.startsWith('/ink')) return 'Metrics'
   if (p.startsWith('/ecosystem')) return 'Ecosystem'
   if (p.startsWith('/explore')) return 'Explore'
-  // if (p.startsWith('/language')) return 'Language'
 
   return 'Home'
 }
 
-const pageToPath = (k: PageKey): string => {
-  if (k === 'Home') return '/'
+const pageToPath = (k: PageKey, wallet?: string): string => {
+  const w = (wallet || '').toLowerCase()
+
+  // keep address in URL
+  if (k === 'Home') {
+    if (w && w.startsWith('0x') && w.length === 42) return `/address/${w}`
+    return '/'
+  }
+
   if (k === 'Bridge') return '/bridge'
-if (k === 'Metrics') return '/metrics'
+  if (k === 'Metrics') return '/metrics'
   if (k === 'Ecosystem') return '/ecosystem'
   if (k === 'Explore') return '/explore'
   if (k === 'Language') return '/language'
   return '/'
 }
+
 
 type PageKey = 'Home' | 'Bridge' | 'Metrics' | 'Ecosystem' | 'Explore' | 'Language'
 
@@ -486,6 +506,19 @@ const [activePage, setActivePage] = useState<PageKey>(() => {
   if (typeof window === 'undefined') return 'Home'
   return pathToPage(window.location.pathname || '/')
 })
+
+const [walletAddress, setWalletAddress] = useState<string>(() => {
+  if (typeof window === 'undefined') return ''
+  const fromPath = getWalletFromPath(window.location.pathname || '/')
+  return fromPath || ''
+})
+
+const [searchInput, setSearchInput] = useState<string>(() => {
+  if (typeof window === 'undefined') return ''
+  const fromPath = getWalletFromPath(window.location.pathname || '/')
+  return fromPath || ''
+})
+
 const [isPinned, setIsPinned] = useState(false);
 
 // mobile sidebar drawer
@@ -526,8 +559,7 @@ useEffect(() => {
 }, [])
 
   // real wallet and search input
-const [walletAddress, setWalletAddress] = useState<string>('')   // currently viewed wallet
-const [searchInput, setSearchInput] = useState<string>('')
+
 
 // wagmi wallet state
 const { address } = useAccount()
@@ -635,9 +667,17 @@ const [overlayDismissed, setOverlayDismissed] = useState(false)
 useEffect(() => {
   if (typeof window === 'undefined') return
 
-  const sync = () => {
-    setActivePage(pathToPage(window.location.pathname || '/'))
+const sync = () => {
+  const path = window.location.pathname || '/'
+  setActivePage(pathToPage(path))
+
+  const addr = getWalletFromPath(path)
+  if (addr) {
+    setWalletAddress(addr)
+    setSearchInput(addr)
   }
+}
+
 
   // back/forward
   window.addEventListener('popstate', sync)
@@ -700,6 +740,17 @@ useEffect(() => {
     }
   })()
 }, [address])
+
+useEffect(() => {
+  if (typeof window === 'undefined') return
+  if (!walletAddress) return
+
+  const next = `/address/${walletAddress.toLowerCase()}`
+  if (window.location.pathname !== next) {
+    window.history.replaceState({}, '', next)
+    window.dispatchEvent(new Event('popstate'))
+  }
+}, [walletAddress])
 
 // try to get token icon from backend that proxies Dexscreener
 const fetchDexIcon = async (address: string) => {
@@ -1284,22 +1335,28 @@ const handleDisconnect = () => {
   setPerCollectionSpentUsd({})
   setTotalNftSpentUsd(0)
   setOverlayDismissed(false)
+
+    if (typeof window !== 'undefined') {
+    window.history.replaceState({}, '', '/')
+    window.dispatchEvent(new Event('popstate'))
+  }
+
 }
 
 const go = (k: PageKey) => {
   setActivePage(k)
   setMobileNavOpen(false)
 
-
   if (typeof window === 'undefined') return
 
-  const nextPath = pageToPath(k)
+  const nextPath = pageToPath(k, walletAddress)
   const curPath = window.location.pathname
 
   if (curPath !== nextPath) {
     window.history.pushState({}, '', nextPath)
   }
 }
+
 
 
   // manual refresh: refresh portfolio, write snapshot, reload history
@@ -3265,7 +3322,7 @@ href={group.protocolUrl || group.explorerUrl || getPositionUrl(group.kindLabel) 
 </span>
         </div>
 
-        {/* tiny label row like DeBank "Liquidity pool" under protocol name */}
+        {/* tiny label row "Liquidity pool" under protocol name */}
         <div className='positions-row yielding-kind-row'>
 <span
   className='col-token'
