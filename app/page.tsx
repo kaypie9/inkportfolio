@@ -486,7 +486,21 @@ const [activePage, setActivePage] = useState<PageKey>(() => {
   if (typeof window === 'undefined') return 'Home'
   return pathToPage(window.location.pathname || '/')
 })
-  const [isPinned, setIsPinned] = useState(false);
+const [isPinned, setIsPinned] = useState(false);
+
+// mobile sidebar drawer
+const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
+// if screen becomes desktop size, auto close mobile drawer
+useEffect(() => {
+  if (typeof window === 'undefined') return
+  const onResize = () => {
+    if (window.innerWidth >= 901) setMobileNavOpen(false)
+  }
+  window.addEventListener('resize', onResize)
+  onResize()
+  return () => window.removeEventListener('resize', onResize)
+}, [])
 const [theme, setTheme] = useState<'light' | 'dark'>(() => {
   if (typeof window === 'undefined') return 'light'
 
@@ -985,7 +999,20 @@ if (typeof json.nativeUsdPrice === 'number') {
 useEffect(() => {
   if (!walletAddress) return;
 
+  // reset visible data so skeleton shows again
+  setPortfolio(null)
+  setPositions([])
+  setPortfolioError(null)
+  setPositionsError(null)
+
+  // reset nfts ui
+  setNftCollections(null)
+  setNftError(null)
+  setPerCollectionSpentUsd({})
+  setTotalNftSpentUsd(0)
+
   setTxPage(1);
+
   setTxHasMore(false);
   setTxTokenQuery('');
   setTxSelectedToken(null);
@@ -1261,6 +1288,8 @@ const handleDisconnect = () => {
 
 const go = (k: PageKey) => {
   setActivePage(k)
+  setMobileNavOpen(false)
+
 
   if (typeof window === 'undefined') return
 
@@ -1429,9 +1458,10 @@ const toggleTheme = () => {
 
 
 
-  const sidebarClass = isPinned
-    ? "sidebar sidebar-pinned"
-    : "sidebar sidebar-floating";
+const sidebarClass = `${
+  isPinned ? 'sidebar sidebar-pinned' : 'sidebar sidebar-floating'
+}${mobileNavOpen ? ' sidebar-mobile-open' : ''}`
+
 
   const mainClass = isPinned ? "main main-pinned" : "main main-floating";
 
@@ -1935,6 +1965,15 @@ loadNftSpent(targetAddress);
         </div>
 
         <div className="header-right">
+          <button
+  type="button"
+  className="mobile-menu-btn"
+  aria-label="menu"
+  onClick={() => setMobileNavOpen(v => !v)}
+>
+  ☰
+</button>
+
 <button
   type="button"
   className="theme-toggle-btn"
@@ -1980,7 +2019,15 @@ loadNftSpent(targetAddress);
         </div>
       </header>
 
-      <div className="layout-shell">
+{mobileNavOpen && (
+  <div
+    className="mobile-nav-backdrop"
+    onClick={() => setMobileNavOpen(false)}
+  />
+)}
+
+<div className="layout-shell">
+
         {/* sidebar */}
         <aside className={sidebarClass}>
           {/* logo + pin row */}
@@ -2462,8 +2509,8 @@ onClick={() => go('Bridge')}
 
                 {/* right side: net worth + chart */}
                 <div className="portfolio-networth">
-                  <div className="portfolio-title-row">
-                    <div className="portfolio-title-left">
+<div className="portfolio-title-row hide-mobile">
+                      <div className="portfolio-title-left">
                       <span className="portfolio-title">Net worth</span>
                       <span className="portfolio-title-pill">ink only</span>
                     </div>
@@ -2504,7 +2551,7 @@ onClick={() => go('Bridge')}
 </div>
                   </div>
 
-  <div className="portfolio-tag-row">
+<div className="portfolio-tag-row hide-mobile">
     <div className="portfolio-tag-right">
       <span className="portfolio-tag-dot"></span>
       <span className="portfolio-tag-text">live snapshot</span>
@@ -2512,8 +2559,8 @@ onClick={() => go('Bridge')}
   </div>
 
                   <div className="portfolio-networth-main premium-networth">
-    <div className="portfolio-chart-wrapper">
-      <div className="portfolio-chart-bg"></div>
+<div className="portfolio-chart-wrapper hide-mobile">
+        <div className="portfolio-chart-bg"></div>
       {activePoint && hoverX != null && (
         <div
           className="chart-tooltip"
@@ -2614,8 +2661,8 @@ onClick={() => go('Bridge')}
                       </div>
 
 {hasHistory ? (
-  <div className="portfolio-sub-row premium-sub-row">
-    {/* percent pill on the left */}
+<div className="portfolio-sub-row premium-sub-row hide-mobile">
+      {/* percent pill on the left */}
     <span
       className={`portfolio-change-pill ${isUp ? "pill-up" : "pill-down"}`}
       style={{ marginRight: "8px" }}
@@ -2635,8 +2682,8 @@ onClick={() => go('Bridge')}
 </span>
   </div>
 ) : (
-  <div className="portfolio-sub-row premium-sub-row">
-    <span className="portfolio-sub-label">no history yet</span>
+<div className="portfolio-sub-row premium-sub-row hide-mobile">
+      <span className="portfolio-sub-label">no history yet</span>
     <span className="portfolio-sub-value">$0.00</span>
   </div>
 )}
@@ -4517,12 +4564,16 @@ By using Inkavern, you agree to this policy.
 
       <div className='feedback-body'>
         <div style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.9 }}>
-  Inkavern is a simple dashboard for Ink wallets.
-  <br />
-  Track tokens, positions, NFTs, and transactions in one place.
-  <br />
-  Built for the Ink community.
 
+Inkavern is a lightweight dashboard for Ink wallets.
+<br /><br />
+Track tokens, positions, NFTs, and transactions in one place with a clean and fast interface.
+<br />
+Built for the Ink community, by the Ink community.
+<br /><br />
+Data sources include Blockscout, DeFiLlama, Dexscreener, CoinGecko, and LI FI.
+<br />
+All data is public, read only, and may be delayed or incomplete.
   <div style={{ marginTop: 10, fontSize: 12, opacity: 0.85 }}>
     Contact: <a className='about-email-link' href='mailto:inkavern@gmail.com'>inkavern@gmail.com</a>
   </div>

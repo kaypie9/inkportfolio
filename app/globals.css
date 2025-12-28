@@ -12495,3 +12495,660 @@ body[data-theme='light'] .about-email-link:hover{
 .sidebar-footer-contact:hover .sidebar-bottom-icon {
   transform: none;
 }
+
+
+
+
+/* =====================
+   Mobile responsiveness
+   ===================== */
+
+.mobile-menu-btn {
+  display: none;
+}
+
+.mobile-nav-backdrop {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  /* header */
+  .header,
+  .header-floating,
+  .header-pinned {
+    margin-left: 0 !important;
+    height: auto;
+    padding: 10px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .header-left {
+    display: none;
+  }
+
+  .header-center {
+    width: 100%;
+    order: 3;
+    padding: 0;
+    justify-content: flex-start;
+  }
+
+  .search-wrapper {
+    max-width: none;
+  }
+
+  .header-right {
+    gap: 6px;
+  }
+
+  .header-right button {
+    height: 36px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+
+  .mobile-menu-btn {
+    display: inline-flex;
+    width: 44px;
+    height: 36px;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    border-radius: 10px;
+  }
+
+  /* backdrop */
+  .mobile-nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(3px);
+  }
+
+  /* sidebar as fixed drawer */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 260px;
+    transform: translateX(-110%);
+    transition: transform 0.22s ease;
+    z-index: 30;
+  }
+
+  .sidebar-mobile-open {
+    transform: translateX(0);
+  }
+
+  /* layout must not be offset */
+  .layout-shell {
+    margin-left: 0 !important;
+  }
+
+  .main,
+  .main-floating,
+  .main-pinned {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0 !important;
+    padding: 16px;
+  }
+
+  .main-inner {
+    padding: 0;
+  }
+
+  /* grids */
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* tables scroll */
+  .tx-table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tx-table table {
+    min-width: 780px;
+  }
+}
+/* =====================
+   Mobile hard overrides
+   keep at very bottom
+   ===================== */
+
+@media (max-width: 900px) {
+  /* kill desktop offsets */
+  .header-floating,
+  .header-pinned,
+  .main-floating,
+  .main-pinned {
+    margin-left: 0 !important;
+  }
+
+  /* header compact */
+  .header,
+  .header-floating,
+  .header-pinned {
+    padding: 10px 12px !important;
+  }
+
+  /* hide that left pill on mobile, it eats space */
+  .ink-built-pill {
+    display: none !important;
+  }
+
+  /* input should not be huge */
+  .header-center input {
+    height: 40px !important;
+    font-size: 14px !important;
+  }
+
+  /* sidebar must not be hover-behavior on mobile */
+  .sidebar-floating:hover {
+    width: 260px !important;
+  }
+
+  /* sidebar drawer behavior */
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 100vh !important;
+    width: 260px !important;
+    transform: translateX(-110%) !important;
+    transition: transform 0.22s ease !important;
+    z-index: 30 !important;
+  }
+
+  .sidebar-mobile-open {
+    transform: translateX(0) !important;
+  }
+
+  /* backdrop */
+  .mobile-nav-backdrop {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 25 !important;
+    background: rgba(0, 0, 0, 0.45) !important;
+    backdrop-filter: blur(3px) !important;
+  }
+
+  /* main should be full width */
+  .layout-shell {
+    margin-left: 0 !important;
+  }
+
+  .main,
+  .main-floating,
+  .main-pinned {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 14px !important;
+  }
+
+  .main-inner {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  /* stack rows instead of squeeze */
+  .main-header-row,
+  .positions-header-row,
+  .tx-header-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  /* cards grid 1 column */
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* tables scroll instead of destroying columns */
+  .tx-table,
+  .positions-table,
+  .wallet-table {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .tx-table table,
+  .positions-table table,
+  .wallet-table table {
+    min-width: 780px !important;
+  }
+}
+@media (max-width: 900px) {
+  .hide-mobile {
+    display: none !important;
+  }
+
+  /* net worth card becomes just a number */
+  .portfolio-networth {
+    padding: 14px !important;
+  }
+
+  .portfolio-networth .portfolio-networth-main {
+    padding: 14px !important;
+  }
+
+  .portfolio-networth .portfolio-value {
+    font-size: 34px !important;
+    line-height: 1.15 !important;
+    letter-spacing: -0.02em !important;
+  }
+}
+@media (max-width: 900px) {
+  /* net worth card should behave like a normal block */
+  .portfolio-networth {
+    position: relative !important;
+    overflow: hidden !important;
+  }
+
+  /* force number back into layout flow */
+  .portfolio-value {
+    position: static !important;
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+
+    font-size: 34px !important;
+    line-height: 1.15 !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  /* remove any chart-based absolute containers */
+  .portfolio-networth-main {
+    position: static !important;
+  }
+}
+@media (max-width: 900px) {
+  .wallet-actions-row {
+    display: none !important;
+  }
+}
+@media (max-width: 900px) {
+  /* the big header card becomes single column */
+  .portfolio-header-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* make sure the net worth block is not collapsing */
+  .portfolio-networth {
+    display: block !important;
+    width: 100% !important;
+    min-height: 70px !important;
+  }
+
+  /* center the number area nicely */
+  .portfolio-networth-main {
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .portfolio-header-content {
+    width: 100% !important;
+  }
+
+  .portfolio-value {
+    display: block !important;
+    width: 100% !important;
+    text-align: left !important;
+  }
+}
+@media (max-width: 900px) {
+  .eco-only-desktop { display: none !important; }
+  .eco-only-mobile { display: block !important; }
+
+  .eco-mobilehide-card{
+    width: 100%;
+    border-radius: 16px;
+    padding: 16px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.10);
+    backdrop-filter: blur(10px);
+  }
+  body[data-theme="light"] .eco-mobilehide-card{
+    background: rgba(0,0,0,0.04);
+    border: 1px solid rgba(0,0,0,0.10);
+  }
+
+  .eco-mobilehide-title{
+    font-size: 15px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.92);
+  }
+  body[data-theme="light"] .eco-mobilehide-title{
+    color: rgba(0,0,0,0.88);
+  }
+
+  .eco-mobilehide-sub{
+    margin-top: 6px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.60);
+  }
+  body[data-theme="light"] .eco-mobilehide-sub{
+    color: rgba(0,0,0,0.55);
+  }
+}
+
+@media (min-width: 901px) {
+  .eco-only-desktop { display: block !important; }
+  .eco-only-mobile { display: none !important; }
+}
+@media (max-width: 900px) {
+  /* mobile sidebar theme colors */
+  body[data-theme=dark] .sidebar {
+    background: rgba(10, 10, 14, 0.96) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.10) !important;
+    color: rgba(255, 255, 255, 0.92) !important;
+  }
+
+  body[data-theme=light] .sidebar {
+    background: rgba(255, 255, 255, 0.98) !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.10) !important;
+    color: rgba(0, 0, 0, 0.88) !important;
+  }
+
+  body[data-theme=dark] .sidebar a,
+  body[data-theme=dark] .sidebar button {
+    color: rgba(255, 255, 255, 0.82) !important;
+  }
+
+  body[data-theme=light] .sidebar a,
+  body[data-theme=light] .sidebar button {
+    color: rgba(0, 0, 0, 0.72) !important;
+  }
+
+  body[data-theme=dark] .sidebar svg {
+    color: rgba(255, 255, 255, 0.78) !important;
+  }
+
+  body[data-theme=light] .sidebar svg {
+    color: rgba(0, 0, 0, 0.62) !important;
+  }
+
+  /* active item highlight */
+  body[data-theme=dark] .sidebar .active,
+  body[data-theme=dark] .sidebar a.active,
+  body[data-theme=dark] .sidebar button.active {
+    background: rgba(140, 90, 255, 0.14) !important;
+    border: 1px solid rgba(140, 90, 255, 0.22) !important;
+  }
+
+  body[data-theme=light] .sidebar .active,
+  body[data-theme=light] .sidebar a.active,
+  body[data-theme=light] .sidebar button.active {
+    background: rgba(140, 90, 255, 0.10) !important;
+    border: 1px solid rgba(140, 90, 255, 0.18) !important;
+  }
+}
+@media (max-width: 900px) {
+  /* when drawer is open, force labels to stay visible */
+  .sidebar-mobile-open .sidebar-label,
+  .sidebar-mobile-open .nav-label,
+  .sidebar-mobile-open .menu-label,
+  .sidebar-mobile-open .link-label,
+  .sidebar-mobile-open .sidebar-text {
+    opacity: 1 !important;
+    transform: none !important;
+    width: auto !important;
+    max-width: none !important;
+    display: inline-flex !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  /* if you had hover based rules, this overrides them */
+  .sidebar .sidebar-label,
+  .sidebar .nav-label,
+  .sidebar .menu-label,
+  .sidebar .link-label,
+  .sidebar .sidebar-text {
+    transition: none !important;
+  }
+}
+@media (max-width: 900px) {
+  /* =====================
+     Mobile sidebar polish
+     ===================== */
+
+  /* top brand area */
+  body[data-theme=dark] .sidebar .sidebar-brand,
+  body[data-theme=dark] .sidebar .sidebar-top,
+  body[data-theme=dark] .sidebar .sidebar-header {
+    padding: 14px 14px 10px !important;
+  }
+
+  body[data-theme=light] .sidebar .sidebar-brand,
+  body[data-theme=light] .sidebar .sidebar-top,
+  body[data-theme=light] .sidebar .sidebar-header {
+    padding: 14px 14px 10px !important;
+  }
+
+  /* brand name text (if you have it) */
+  body[data-theme=dark] .sidebar .sidebar-brand-name,
+  body[data-theme=dark] .sidebar .app-name,
+  body[data-theme=dark] .sidebar .brand-name {
+    color: rgba(255,255,255,0.92) !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  body[data-theme=light] .sidebar .sidebar-brand-name,
+  body[data-theme=light] .sidebar .app-name,
+  body[data-theme=light] .sidebar .brand-name {
+    color: rgba(0,0,0,0.88) !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  /* bottom buttons area spacing */
+  .sidebar .sidebar-bottom,
+  .sidebar .sidebar-footer,
+  .sidebar .sidebar-social {
+    padding: 12px 14px 14px !important;
+  }
+
+  /* make bottom icon buttons look like real buttons */
+  .sidebar .sidebar-bottom a,
+  .sidebar .sidebar-bottom button,
+  .sidebar .sidebar-footer a,
+  .sidebar .sidebar-footer button,
+  .sidebar .sidebar-social a,
+  .sidebar .sidebar-social button {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 12px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  body[data-theme=dark] .sidebar .sidebar-bottom a,
+  body[data-theme=dark] .sidebar .sidebar-bottom button,
+  body[data-theme=dark] .sidebar .sidebar-footer a,
+  body[data-theme=dark] .sidebar .sidebar-footer button,
+  body[data-theme=dark] .sidebar .sidebar-social a,
+  body[data-theme=dark] .sidebar .sidebar-social button {
+    background: rgba(255,255,255,0.06) !important;
+    border: 1px solid rgba(255,255,255,0.10) !important;
+  }
+
+  body[data-theme=light] .sidebar .sidebar-bottom a,
+  body[data-theme=light] .sidebar .sidebar-bottom button,
+  body[data-theme=light] .sidebar .sidebar-footer a,
+  body[data-theme=light] .sidebar .sidebar-footer button,
+  body[data-theme=light] .sidebar .sidebar-social a,
+  body[data-theme=light] .sidebar .sidebar-social button {
+    background: rgba(0,0,0,0.04) !important;
+    border: 1px solid rgba(0,0,0,0.10) !important;
+  }
+
+  /* bottom row layout */
+  .sidebar .sidebar-bottom,
+  .sidebar .sidebar-footer,
+  .sidebar .sidebar-social {
+    display: flex !important;
+    gap: 10px !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+  }
+
+  /* dividers look softer */
+  body[data-theme=dark] .sidebar hr,
+  body[data-theme=dark] .sidebar .sidebar-divider {
+    border-color: rgba(255,255,255,0.10) !important;
+    opacity: 1 !important;
+  }
+
+  body[data-theme=light] .sidebar hr,
+  body[data-theme=light] .sidebar .sidebar-divider {
+    border-color: rgba(0,0,0,0.10) !important;
+    opacity: 1 !important;
+  }
+}
+@media (max-width: 900px) {
+  /* mobile: sidebar should stay "expanded" when opened */
+  .sidebar,
+  .sidebar-floating,
+  .sidebar-pinned {
+    width: 260px !important;
+  }
+
+  /* kill the hover-only text behavior */
+  .sidebar * {
+    transition: none !important;
+  }
+
+  /* force labels to always show on mobile */
+  .sidebar .sidebar-label,
+  .sidebar .nav-label,
+  .sidebar .nav-text,
+  .sidebar span,
+  .sidebar p {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+    width: auto !important;
+    max-width: none !important;
+    display: inline !important;
+  }
+
+  /* if you have a collapsed class that hides text, disable it on mobile */
+  .sidebar-collapsed .sidebar-label,
+  .sidebar-collapsed .nav-label,
+  .sidebar-collapsed .nav-text {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: inline !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  /* sidebar labels + footer must NEVER depend on hover/focus on mobile */
+@media (max-width: 900px) {
+  .sidebar-mobile-open * {
+    transition: none !important;
+  }
+
+  /* force any label/text that was hidden by collapsed sidebar logic */
+  .sidebar-mobile-open .sidebar-label,
+  .sidebar-mobile-open .nav-label,
+  .sidebar-mobile-open .nav-text,
+  .sidebar-mobile-open .sidebar-text,
+  .sidebar-mobile-open .sidebar-item-text,
+  .sidebar-mobile-open .sidebar a span,
+  .sidebar-mobile-open .sidebar button span {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+    width: auto !important;
+    max-width: none !important;
+    pointer-events: auto !important;
+  }
+
+  /* force the footer area to always be visible */
+  .sidebar-mobile-open .sidebar-footer,
+  .sidebar-mobile-open .sidebar-bottom,
+  .sidebar-mobile-open .sidebar-legal,
+  .sidebar-mobile-open .legal-links {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+  }
+}
+@media (max-width: 900px) {
+  .sidebar-mobile-open .legal-links {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding-top: 10px !important;
+  }
+
+  .sidebar-mobile-open .legal-links a,
+  .sidebar-mobile-open .sidebar-legal a {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    padding: 7px 10px !important;
+    border-radius: 12px !important;
+    text-decoration: none !important;
+    border: 1px solid transparent !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* theme colors */
+@media (max-width: 900px) {
+  body[data-theme="light"] .sidebar-mobile-open .legal-links a,
+  body[data-theme="light"] .sidebar-mobile-open .sidebar-legal a {
+    background: rgba(0, 0, 0, 0.04) !important;
+    border-color: rgba(0, 0, 0, 0.08) !important;
+    color: rgba(0, 0, 0, 0.72) !important;
+  }
+
+  body[data-theme="dark"] .sidebar-mobile-open .legal-links a,
+  body[data-theme="dark"] .sidebar-mobile-open .sidebar-legal a {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border-color: rgba(255, 255, 255, 0.10) !important;
+    color: rgba(255, 255, 255, 0.75) !important;
+  }
+}
+}
+@media (max-width: 900px) {
+  /* increase spacing between sidebar items */
+  .sidebar.sidebar-mobile-open .sidebar-nav,
+  .sidebar.sidebar-mobile-open nav,
+  .sidebar.sidebar-mobile-open ul {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important; /* <- controls spacing */
+  }
+
+  /* also add padding inside each button */
+  .sidebar.sidebar-mobile-open a,
+  .sidebar.sidebar-mobile-open button {
+    padding: 10px 12px !important;
+  }
+}
+
+/* hide mobile menu button on desktop */
+@media (min-width: 901px) {
+  .mobile-menu-btn {
+    display: none !important;
+  }
+}

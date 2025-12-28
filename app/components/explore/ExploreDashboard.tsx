@@ -41,6 +41,15 @@ function EmptyLine(props: { text: string }) {
 export default function ExploreDashboard() {
   return (
     <div className='space-y-4'>
+      <div className='eco-only-mobile'>
+        <div className='eco-mobilehide-card'>
+          <div className='eco-mobilehide-title'>Explore is desktop only</div>
+          <div className='eco-mobilehide-sub'>Open on PC for tokens overview and tracked wallets</div>
+        </div>
+      </div>
+
+      <div className='eco-only-desktop'>
+
       {/* grid */}
       <div className='grid gap-4 lg:grid-cols-12'>
 
@@ -64,6 +73,7 @@ export default function ExploreDashboard() {
 </Card>
 </div>
       </div>
+    </div>
     </div>
   )
 }
