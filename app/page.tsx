@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   HomeIcon,
   ArrowsRightLeftIcon,
@@ -662,6 +662,7 @@ const [gmStats, setGmStats] = useState<GmStats>({
 const [showQrModal, setShowQrModal] = useState(false);
 
 const [overlayDismissed, setOverlayDismissed] = useState(false)
+const skipNextSnapshotRef = useRef(false)
 
 
 useEffect(() => {
@@ -1088,10 +1089,34 @@ useEffect(() => {
     setTxs([]);
   }
 
-loadPortfolio(walletAddress);
-loadHistory(walletAddress, historyRange);
-loadNfts(walletAddress);
-loadNftSpent(walletAddress);
+;(async () => {
+  const data = await loadPortfolio(walletAddress)
+
+  // if this wallet was set by the search bar (it already calls refreshAll), do not double snapshot
+  if (skipNextSnapshotRef.current) {
+    skipNextSnapshotRef.current = false
+  } else if (data) {
+    // URL typed wallet should still write a point
+    try {
+      const netWorth = data.totalValueUsd ?? 0
+      await fetch('/api/snapshot', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          wallet: walletAddress.toLowerCase(),
+          netWorthUsd: netWorth,
+        }),
+      })
+    } catch (err) {
+      console.error('snapshot failed', err)
+    }
+  }
+
+  await loadHistory(walletAddress, historyRange)
+  loadNfts(walletAddress)
+  loadNftSpent(walletAddress)
+})()
+
 }, [walletAddress]);
 
 
@@ -2009,12 +2034,14 @@ onKeyDown={async (e) => {
   setHoverIndex(null);
 
 if (!sameWallet) {
+  skipNextSnapshotRef.current = true
   setWalletAddress(targetAddress);
 }
 
 await refreshAll(targetAddress);
 loadNfts(targetAddress);
 loadNftSpent(targetAddress);
+
 
 }}
 />
