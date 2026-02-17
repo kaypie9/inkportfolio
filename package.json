@@ -12,8 +12,6 @@
   "dependencies": {
     "@bigmi/react": "^0.6.3",
     "@heroicons/react": "^2.2.0",
-    "@lifi/sdk": "^3.13.7",
-    "@lifi/widget": "^3.37.0",
     "@mysten/dapp-kit": "^0.19.11",
     "@nadohq/client": "^0.1.0-alpha.41",
     "@solana/wallet-adapter-react": "^0.15.39",

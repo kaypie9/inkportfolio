@@ -20,7 +20,6 @@ import PreloadPlatformIcons from "./PreloadPlatformIcons";
 import { ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
 import { EnvelopeIcon } from "@heroicons/react/24/outline";
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
-import SwapPanel from './SwapPanel'
 import InkMetricsLayout from './InkMetricsLayout'
 import NoWalletOverlay from './components/home/NoWalletOverlay'
 import EcosystemGrid from './components/ecosystem/EcosystemGrid'
@@ -194,7 +193,6 @@ const pathToPage = (path: string): PageKey => {
   if (p.startsWith('/address/')) return 'Home'
 
   if (p === '/' || p === '/home') return 'Home'
-  if (p.startsWith('/bridge') || p.startsWith('/swap')) return 'Bridge'
   if (p.startsWith('/metrics') || p.startsWith('/ink')) return 'Metrics'
   if (p.startsWith('/ecosystem')) return 'Ecosystem'
   if (p.startsWith('/explore')) return 'Explore'
@@ -211,7 +209,6 @@ const pageToPath = (k: PageKey, wallet?: string): string => {
     return '/'
   }
 
-  if (k === 'Bridge') return '/bridge'
   if (k === 'Metrics') return '/metrics'
   if (k === 'Ecosystem') return '/ecosystem'
   if (k === 'Explore') return '/explore'
@@ -220,7 +217,7 @@ const pageToPath = (k: PageKey, wallet?: string): string => {
 }
 
 
-type PageKey = 'Home' | 'Bridge' | 'Metrics' | 'Ecosystem' | 'Explore' | 'Language'
+type PageKey = 'Home' | 'Metrics' | 'Ecosystem' | 'Explore' | 'Language'
 
 type TokenHolding = {
   address: string;
@@ -1550,7 +1547,6 @@ const sidebarClass = `${
   
 const pageTitles: Record<PageKey, string> = {
   Home: 'Ink Dashboard',
-  Bridge: 'Bridge',
   Metrics: 'Metrics',
   Ecosystem: 'Ecosystem',
   Explore: 'Explore',
@@ -1559,7 +1555,6 @@ const pageTitles: Record<PageKey, string> = {
 
 const pageSubtitles: Record<PageKey, string> = {
   Home: 'simple overview of your ink portfolio',
-  Bridge: 'swap & bridge to ink',
 Metrics: 'simple overview of ink network metrics',
   Ecosystem: 'apps and protocols',
   Explore: 'token discovery and wallet tracking',
@@ -2165,21 +2160,6 @@ go('Home')
     <span className="sidebar-label">Home</span>
   </button>
 
-  {/* Swap */}
-  <button
-    className={`sidebar-item ${
-      activePage === "Bridge" ? "sidebar-item-active" : ""
-    }`}
-onClick={() => go('Bridge')}
-  >
-    <span className="sidebar-icon-slot">
-      <span className="sidebar-icon">
-        <ArrowsRightLeftIcon />
-      </span>
-    </span>
-    <span className="sidebar-label">Bridge</span>
-  </button>
-
   {/* Explore */}
   <button
     className={`sidebar-item ${
@@ -2542,13 +2522,6 @@ onClick={() => {
                     </div>
                   </div>
                   <div className="wallet-actions-row">
-  <button
-    type="button"
-    className="wallet-action-btn"
-onClick={() => go('Bridge')}
-  >
-    Swap & Bridge 
-  </button>
 </div>
 
 
@@ -4430,40 +4403,6 @@ const valueUsd =
   </div>
 )}
 
-
-
-{activePage === 'Bridge' && (
-<section
-  className='positions-section'
-  style={
-    activePage === 'Bridge'
-      ? { position: 'relative', opacity: 1, pointerEvents: 'auto' }
-      : {
-          position: 'fixed',
-          left: -10000,
-          top: 0,
-          width: 560,
-          height: 760,
-          opacity: 0,
-          pointerEvents: 'none',
-        }
-  }
-  aria-hidden={activePage !== 'Bridge'}
->
-  <div className='ink-divider'></div>
-  <div className='positions-header-row'>
-    <div className='portfolio-title-stack'>
-      <div className='section-title'>Bridge</div>
-      <div className='section-subtitle'>Powered by li.fi</div>
-    </div>
-  </div>
-
-  <div style={{ marginTop: 12 }}>
-    <SwapPanel />
-  </div>
-</section>
-)}
-
 <section
   className='positions-section'
   style={
@@ -4614,8 +4553,6 @@ By using Inkavern, you agree to this policy.
           Inkavern is an informational dashboard only.
           <br /><br />
           We do not execute transactions or control user funds.
-          <br /><br />
-          Any swaps or bridges are handled by third-party services.
           <br /><br />
           All actions taken using external links or embedded tools are the user’s responsibility.
           <br /><br />
