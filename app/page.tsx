@@ -498,8 +498,8 @@ function isValidContactInfo(input: string): boolean {
 
 
 
-export default function HomePage() {
-const [activePage, setActivePage] = useState<PageKey>(() => {
+export default function HomePage({ disableWalletCTA = false }: { disableWalletCTA?: boolean }) {
+  const [activePage, setActivePage] = useState<PageKey>(() => {
   if (typeof window === 'undefined') return 'Home'
   return pathToPage(window.location.pathname || '/')
 })
@@ -2066,32 +2066,36 @@ loadNftSpent(targetAddress);
 </button>
 
 
-{mounted && connectedWallet ? (
-  <button
-    type='button'
-    className='connect-wallet-btn'
-    onClick={handleDisconnect}
-  >
-    {(connectedEnsName ||
-      `${connectedWallet.substring(0, 6)}...${connectedWallet.substring(
-        connectedWallet.length - 4
-      )}`)} • disconnect
-  </button>
-) : (
-  <button
-    type='button'
-    className='connect-wallet-btn'
-    onClick={() => {
-      const connector = connectors[0]
-      if (!connector) {
-        console.error('no wagmi connector found')
-        return
-      }
-      connect({ connector })
-    }}
-  >
-    {!mounted ? 'connect wallet' : isConnectingWallet ? 'connecting...' : 'connect wallet'}
-  </button>
+{!disableWalletCTA && (
+  <>
+    {mounted && connectedWallet ? (
+      <button
+        type='button'
+        className='connect-wallet-btn'
+        onClick={handleDisconnect}
+      >
+        {(connectedEnsName ||
+          `${connectedWallet.substring(0, 6)}...${connectedWallet.substring(
+            connectedWallet.length - 4
+          )}`)} • disconnect
+      </button>
+    ) : (
+      <button
+        type='button'
+        className='connect-wallet-btn'
+        onClick={() => {
+          const connector = connectors[0]
+          if (!connector) {
+            console.error('no wagmi connector found')
+            return
+          }
+          connect({ connector })
+        }}
+      >
+        {!mounted ? 'connect wallet' : isConnectingWallet ? 'connecting...' : 'connect wallet'}
+      </button>
+    )}
+  </>
 )}
 
 
@@ -2372,12 +2376,14 @@ onClick={() => {
 
 {activePage === 'Home' && (
   <div className="home-shell">
-    <NoWalletOverlay
-  show={!walletAddress && !overlayDismissed}
-  onConnect={handleOverlayConnect}
-  onGoMetrics={handleOverlayGoMetrics}
-  onClose={() => setOverlayDismissed(true)}
-/>
+{!disableWalletCTA && (
+  <NoWalletOverlay
+    show={!walletAddress && !overlayDismissed}
+    onConnect={handleOverlayConnect}
+    onGoMetrics={handleOverlayGoMetrics}
+    onClose={() => setOverlayDismissed(true)}
+  />
+)}
 
                       {/* portfolio header card */}
             <div
