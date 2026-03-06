@@ -2405,9 +2405,13 @@ onClick={() => {
                 <div className="portfolio-meta">
                   <div className="wallet-identity">
                     <div className="wallet-label-row">
-                      <span className="wallet-label">INK Wallet</span>
+<span className="wallet-label">
+  {disableWalletCTA ? 'Public address' : 'INK Wallet'}
+</span>
 <span className="wallet-status-pill">
-  {!mounted
+  {disableWalletCTA
+    ? "Read only"
+    : !mounted
     ? "Not connected"
     : isViewingConnectedWallet
     ? "Connected"
@@ -2440,9 +2444,13 @@ onClick={() => {
 
 <span className="wallet-address-text">
   {walletAddress
-    ? isViewingConnectedWallet
+    ? disableWalletCTA
+      ? "public address: "
+      : isViewingConnectedWallet
       ? "your wallet: "
       : "watching: "
+    : disableWalletCTA
+    ? "public address viewer"
     : "no wallet selected"}
 {walletAddress && (
   <>

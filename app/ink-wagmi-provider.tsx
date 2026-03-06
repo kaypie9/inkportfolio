@@ -41,8 +41,8 @@ const queryClient = new QueryClient()
 
 export function InkWagmiProvider({ children }: { children: ReactNode }) {
   return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
+<WagmiProvider config={config} reconnectOnMount={false}>
+        <QueryClientProvider client={queryClient}>
         {children}
       </QueryClientProvider>
     </WagmiProvider>
