@@ -30,7 +30,7 @@ const ink = defineChain({
 const config = createConfig({
   chains: [ink],
   connectors: [
-    injected(),      // MetaMask, Rabby, Kraken, etc
+    injected(),      // MetaMask, Rabby, Kraken, etc.
   ],
   transports: {
     [ink.id]: http('https://rpc-gel.inkonchain.com'),
