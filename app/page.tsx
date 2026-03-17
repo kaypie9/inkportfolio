@@ -19,9 +19,7 @@ import {
 import PreloadPlatformIcons from "./PreloadPlatformIcons";
 import { ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
 import { EnvelopeIcon } from "@heroicons/react/24/outline";
-import { useAccount, useConnect, useDisconnect } from 'wagmi'
 import InkMetricsLayout from './InkMetricsLayout'
-import NoWalletOverlay from './components/home/NoWalletOverlay'
 import EcosystemGrid from './components/ecosystem/EcosystemGrid'
 import { inkEcosystem } from './data/ink-ecosystem'
 import ExploreDashboard from './components/explore/ExploreDashboard'
@@ -559,15 +557,8 @@ useEffect(() => {
 
 
 // wagmi wallet state
-const { address } = useAccount()
-const { connect, connectors, isPending: isConnectPending } = useConnect()
-const { disconnect } = useDisconnect()
-
-const connectedWallet = address ? address.toLowerCase() : null
-const isConnectingWallet = isConnectPending
 
 const [ensName, setEnsName] = useState<string | null>(null);
-const [connectedEnsName, setConnectedEnsName] = useState<string | null>(null);
 
   // portfolio + loading state
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
@@ -716,28 +707,7 @@ history.replaceState = (
 }, [])
 
 
-useEffect(() => {
-  if (!address) return
 
-  const addr = address.toLowerCase()
-
-  // set default viewed wallet if empty
-  setWalletAddress(prev => prev || addr)
-  setSearchInput(prev => prev || addr)
-
-  // register for hourly tracking
-  ;(async () => {
-    try {
-      await fetch('/api/tracked-wallet', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ wallet: addr }),
-      })
-    } catch (err) {
-      console.error('tracked-wallet call failed', err)
-    }
-  })()
-}, [address])
 
 useEffect(() => {
   if (typeof window === 'undefined') return
@@ -813,12 +783,6 @@ const fetchNftIcon = async (address: string) => {
 };
 
 
-
-const handleOverlayConnect = () => {
-  const connector = connectors[0]
-  if (!connector) return
-  connect({ connector })
-}
 
 const handleOverlayGoMetrics = () => {
 go('Metrics')
@@ -1291,79 +1255,6 @@ useEffect(() => {
 }, [walletAddress]);
 
 // fetch .ink name for the connected wallet (button label)
-useEffect(() => {
-  if (!connectedWallet) {
-    setConnectedEnsName(null);
-    return;
-  }
-
-  
-  
-  const addr = connectedWallet.toLowerCase();
-  let cancelled = false;
-
-  const fetchInkName = async () => {
-    try {
-      const res = await fetch(
-        `https://explorer.inkonchain.com/api/v2/addresses/${addr}`
-      );
-
-      if (!res.ok) return;
-
-      const data = await res.json();
-
-      const nameField =
-        typeof data.ens_domain_name === 'string' && data.ens_domain_name.length
-          ? data.ens_domain_name
-          : typeof data.name === 'string' && data.name.length
-          ? data.name
-          : null;
-
-      if (!cancelled) {
-        setConnectedEnsName(nameField);
-      }
-    } catch {
-      if (!cancelled) {
-        setConnectedEnsName(null);
-      }
-    }
-  };
-
-  fetchInkName();
-
-  return () => {
-    cancelled = true;
-  };
-}, [connectedWallet]);
-
-
-const handleDisconnect = () => {
-  disconnect()
-
-  setWalletAddress('')
-  setSearchInput('')
-  setPortfolio(null)
-
-  setNetWorthHistory([])
-  setHoverIndex(null)
-
-  setTxs([])
-  setTxPage(1)
-  setTxHasMore(false)
-  setTxSelectedToken(null)
-  setTxTokenQuery('')
-
-  setNftCollections(null)
-  setPerCollectionSpentUsd({})
-  setTotalNftSpentUsd(0)
-  setOverlayDismissed(false)
-
-    if (typeof window !== 'undefined') {
-    window.history.replaceState({}, '', '/')
-    window.dispatchEvent(new Event('popstate'))
-  }
-
-}
 
 const go = (k: PageKey) => {
   setActivePage(k)
@@ -1784,11 +1675,6 @@ const manualIconKey =
   return Object.values(groupsByKey);
 }, [yieldingPositions, portfolio]);
 
-const isViewingConnectedWallet =
-  !!connectedWallet &&
-  !!walletAddress &&
-  connectedWallet.toLowerCase() === walletAddress.toLowerCase();
-
 const explorerTxUrl = walletAddress
   ? `https://explorer.inkonchain.com/address/${walletAddress}?tab=txs`
   : null;
@@ -2068,33 +1954,6 @@ loadNftSpent(targetAddress);
 
 {!disableWalletCTA && (
   <>
-    {mounted && connectedWallet ? (
-      <button
-        type='button'
-        className='connect-wallet-btn'
-        onClick={handleDisconnect}
-      >
-        {(connectedEnsName ||
-          `${connectedWallet.substring(0, 6)}...${connectedWallet.substring(
-            connectedWallet.length - 4
-          )}`)} • disconnect
-      </button>
-    ) : (
-      <button
-        type='button'
-        className='connect-wallet-btn'
-        onClick={() => {
-          const connector = connectors[0]
-          if (!connector) {
-            console.error('no wagmi connector found')
-            return
-          }
-          connect({ connector })
-        }}
-      >
-        {!mounted ? 'connect wallet' : isConnectingWallet ? 'connecting...' : 'connect wallet'}
-      </button>
-    )}
   </>
 )}
 
@@ -2137,21 +1996,6 @@ loadNftSpent(targetAddress);
     }`}
     onClick={() => {
 go('Home')
-
-      if (
-        connectedWallet &&
-        walletAddress.toLowerCase() !== connectedWallet.toLowerCase()
-      ) {
-        setWalletAddress(connectedWallet);
-        setSearchInput(connectedWallet);
-
-        setNetWorthHistory([]);
-        setHoverIndex(null);
-
-        refreshAll(connectedWallet);
-        loadNfts(connectedWallet);
-        loadNftSpent(connectedWallet);
-      }
     }}
   >
     
@@ -2376,15 +2220,6 @@ onClick={() => {
 
 {activePage === 'Home' && (
   <div className="home-shell">
-{!disableWalletCTA && (
-  <NoWalletOverlay
-    show={!walletAddress && !overlayDismissed}
-    onConnect={handleOverlayConnect}
-    onGoMetrics={handleOverlayGoMetrics}
-    onClose={() => setOverlayDismissed(true)}
-  />
-)}
-
                       {/* portfolio header card */}
             <div
               className={`portfolio-header-card ${
@@ -2408,17 +2243,8 @@ onClick={() => {
 <span className="wallet-label">
   {disableWalletCTA ? 'Public address' : 'INK Wallet'}
 </span>
-<span className="wallet-status-pill">
-  {disableWalletCTA
-    ? "Read only"
-    : !mounted
-    ? "Not connected"
-    : isViewingConnectedWallet
-    ? "Connected"
-    : connectedWallet
-    ? "Watching"
-    : "Not connected"}
-</span>
+<span className="wallet-status-pill">Read only</span>
+
 
 
                     </div>
@@ -2443,15 +2269,8 @@ onClick={() => {
 
 
 <span className="wallet-address-text">
-  {walletAddress
-    ? disableWalletCTA
-      ? "public address: "
-      : isViewingConnectedWallet
-      ? "your wallet: "
-      : "watching: "
-    : disableWalletCTA
-    ? "public address viewer"
-    : "no wallet selected"}
+  {walletAddress ? "public address: " : "public address viewer"}
+
 {walletAddress && (
   <>
     {ensName || formatAddress(walletAddress)}

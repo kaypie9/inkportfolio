@@ -1,6 +1,5 @@
 import './globals.css'
 import type { ReactNode } from 'react'
-import { InkWagmiProvider } from './ink-wagmi-provider'
 import { Analytics } from '@vercel/analytics/react'
 
 
@@ -21,7 +20,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body data-theme='dark'>
-        <InkWagmiProvider>{children}</InkWagmiProvider>
+        {children}
   <Analytics />
       </body>
     </html>
