@@ -496,7 +496,13 @@ function isValidContactInfo(input: string): boolean {
 
 
 
-export default function HomePage({ disableWalletCTA = false }: { disableWalletCTA?: boolean }) {
+export default function HomePage({
+  disableWalletCTA = false,
+  isPublicAddressPage = false,
+}: {
+  disableWalletCTA?: boolean
+  isPublicAddressPage?: boolean
+}) {
   const [activePage, setActivePage] = useState<PageKey>(() => {
   if (typeof window === 'undefined') return 'Home'
   return pathToPage(window.location.pathname || '/')
@@ -709,16 +715,6 @@ history.replaceState = (
 
 
 
-useEffect(() => {
-  if (typeof window === 'undefined') return
-  if (!walletAddress) return
-
-  const next = `/address/${walletAddress.toLowerCase()}`
-  if (window.location.pathname !== next) {
-    window.history.replaceState({}, '', next)
-    window.dispatchEvent(new Event('popstate'))
-  }
-}, [walletAddress])
 
 // try to get token icon from backend that proxies Dexscreener
 const fetchDexIcon = async (address: string) => {
@@ -1437,7 +1433,7 @@ const sidebarClass = `${
 
   
 const pageTitles: Record<PageKey, string> = {
-  Home: 'Ink Dashboard',
+  Home: isPublicAddressPage ? 'On-Chain Address Data' : 'Ink Dashboard',
   Metrics: 'Metrics',
   Ecosystem: 'Ecosystem',
   Explore: 'Explore',
@@ -1445,8 +1441,10 @@ const pageTitles: Record<PageKey, string> = {
 }
 
 const pageSubtitles: Record<PageKey, string> = {
-  Home: 'simple overview of your ink portfolio',
-Metrics: 'simple overview of ink network metrics',
+  Home: isPublicAddressPage
+    ? 'public on-chain data for a blockchain address'
+    : 'simple overview of your ink portfolio',
+  Metrics: 'simple overview of ink network metrics',
   Ecosystem: 'apps and protocols',
   Explore: 'token discovery and wallet tracking',
   Language: 'language',
@@ -2220,6 +2218,22 @@ onClick={() => {
 
 {activePage === 'Home' && (
   <div className="home-shell">
+    {isPublicAddressPage && (
+      <div
+        style={{
+          marginBottom: 16,
+          padding: '12px 14px',
+          border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: 12,
+          fontSize: 14,
+          lineHeight: 1.5,
+          background: 'rgba(255,255,255,0.04)',
+        }}
+      >
+        This page shows publicly available on-chain data for a blockchain address.
+        It is read-only. No wallet connection, signature, approval, or transaction is required.
+      </div>
+    )}
                       {/* portfolio header card */}
             <div
               className={`portfolio-header-card ${
@@ -2241,10 +2255,11 @@ onClick={() => {
                   <div className="wallet-identity">
                     <div className="wallet-label-row">
 <span className="wallet-label">
-  {disableWalletCTA ? 'Public address' : 'INK Wallet'}
+  {isPublicAddressPage ? 'On-Chain Address Data' : disableWalletCTA ? 'Public address' : 'INK Wallet'}
 </span>
-<span className="wallet-status-pill">Read only</span>
-
+<span className="wallet-status-pill">
+  {isPublicAddressPage ? 'Public data' : 'Read only'}
+</span>
 
 
                     </div>
@@ -2269,7 +2284,7 @@ onClick={() => {
 
 
 <span className="wallet-address-text">
-  {walletAddress ? "public address: " : "public address viewer"}
+  {walletAddress ? "public address: " : "On-Chain Address Data"}
 
 {walletAddress && (
   <>
@@ -2401,7 +2416,9 @@ onClick={() => {
                 <div className="portfolio-networth">
 <div className="portfolio-title-row hide-mobile">
                       <div className="portfolio-title-left">
-                      <span className="portfolio-title">Net worth</span>
+<span className="portfolio-title">
+  {isPublicAddressPage ? 'Address overview' : 'Net worth'}
+</span>
                       <span className="portfolio-title-pill">ink only</span>
                     </div>
 
