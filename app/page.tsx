@@ -1913,13 +1913,22 @@ onKeyDown={async (e) => {
   setHoverIndex(null);
 
 if (!sameWallet) {
+  const nextAddress = targetAddress.toLowerCase()
+
   skipNextSnapshotRef.current = true
-  setWalletAddress(targetAddress);
+  setWalletAddress(nextAddress)
+
+  if (typeof window !== 'undefined') {
+    const nextPath = `/address/${nextAddress}`
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({}, '', nextPath)
+    }
+  }
 }
 
-await refreshAll(targetAddress);
-loadNfts(targetAddress);
-loadNftSpent(targetAddress);
+await refreshAll(targetAddress.toLowerCase());
+loadNfts(targetAddress.toLowerCase());
+loadNftSpent(targetAddress.toLowerCase());
 
 
 }}
