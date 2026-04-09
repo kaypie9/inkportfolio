@@ -2261,7 +2261,6 @@ onClick={() => {
   {isPublicAddressPage ? 'Public data' : 'Read only'}
 </span>
 
-
                     </div>
 <div
   className={
